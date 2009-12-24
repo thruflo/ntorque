@@ -33,7 +33,7 @@ To add a task to the queue, post to ``/hooks/add`` with two params:
 
 * ``url`` which is the url to the webhook you want the task to request
 * ``params`` which is a json encoded dictionary of the params you want
-to post to the webhook you're requesting
+  to post to the webhook you're requesting
 
 An example in python might be::
 
