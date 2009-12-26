@@ -24,6 +24,7 @@ from tornado import ioloop, httpclient, httpserver, web
 from tornado import options as tornado_options
 from tornado.options import options
 
+import config
 from client import add_task, fetch_tasks
 from utils import do_nothing, unicode_urlencode
 
@@ -79,7 +80,7 @@ class ConcurrentExecuter(web.RequestHandler):
     
     @web.asynchronous
     def post(self):
-        logging.info('ConcurrentExecuter.post')
+        self.start_time = time.time()
         # queue_name and limit are optional
         kwargs = {}
         queue_name = self.get_argument('queue_name', False)
@@ -90,22 +91,17 @@ class ConcurrentExecuter(web.RequestHandler):
             kwargs['limit'] = limit
         tasks = fetch_tasks(**kwargs)
         if len(tasks) == 0:
-            logging.info('no tasks left')
             self.set_status(204)
             self.finish()
         else:
-            logging.info('picked up %s tasks' % len(tasks))
             self.kwargs = queue_name and {'queue_name': queue_name} or {}
             self.task_ids = []
-            http = httpclient.AsyncHTTPClient()
+            http = httpclient.AsyncHTTPClient(max_clients=options.max_tasks)
             for task in tasks:
-                url = task.url,
-                params = task.params,
-                logging.info('httpclient.AsyncHTTPClient.fetch %s' % task)
                 http.fetch(
-                    url,
+                    task.url,
                     method='POST',
-                    body=unicode_urlencode(params),
+                    body=unicode_urlencode(task.params),
                     callback=self.async_callback(
                         self._handle_response,
                         task = task
@@ -116,7 +112,6 @@ class ConcurrentExecuter(web.RequestHandler):
         
     
     def _handle_response(self, response, task):
-        logging.info('ConcurrentExecuter._handle_response for %s' % task)
         if not response.error:
             task.remove(**self.kwargs)
         else: 

@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Provides methods for adding tasks to and fetching
-  tasks from a redis backed queue.
+"""Provides methods for adding and fetching tasks
+  to and from a redis backed queue.
   
-  The data is cached & persisted using 
-  `redis <http://code.google.com/p/redis/wiki/SortedSets>`_
-  
-  Redis stores strings, so we serialise and deserialise to and
-  from json.
+  The data is persisted using a `redis sorted set
+  <http://code.google.com/p/redis/wiki/SortedSets>`_
 """
 
 import hashlib
+import logging
 import time
 
 try:
@@ -21,14 +19,18 @@ except ImportError:
 
 from tornado.options import options
 
+import config
 from utils import normalise_url
 
-import redis as redis
-r = redis.Redis()
+from redis import Redis
+r = Redis()
 
-KEY_PREFIX = 'torque.'
-def get_redis_key(queue_name):
-    return u'%s%s' % (KEY_PREFIX, queue_name)
+_KEY_PREFIX = u'thruflo.torque.'
+def _get_redis_key(s):
+    """Adds ``KEY_PREFIX`` to the start of all redis keys, to lower
+      the risk of a namespace collision.
+    """
+    return u'%s%s' % (_KEY_PREFIX, s)
 
 
 class Task(object):
@@ -92,18 +94,18 @@ class Task(object):
         
         task_string = json.dumps(self.doc)
         ts = time.time() + delay
-        return r.zadd(get_redis_key(queue_name), task_string, ts)
+        return r.zadd(_get_redis_key(queue_name), task_string, ts)
     
     def remove(self, queue_name=options.queue_name):
         """http://code.google.com/p/redis/wiki/ZremCommand
         """
         
         task_string = json.dumps(self.doc)
-        return r.zrem(get_redis_key(queue_name), task_string)
+        return r.zrem(_get_redis_key(queue_name), task_string)
     
     
     def get_and_increment_error_count(self):
-        error_key = get_redis_key(u'%s_error_count' % self.id)
+        error_key = _get_redis_key(u'%s_error_count' % self.id)
         error_count = r.exists(error_key) and int(r.get(error_key)) or 0
         error_count += 1
         r.set(error_key, str(error_count))
@@ -120,15 +122,15 @@ class Task(object):
     
 
 
-def add_task(url, params, queue_name=options.queue_name, delay=0):
-    t = Task(url=url, params=params)
+def add_task(url, params={}, queue_name=options.queue_name, delay=0):
+    t = Task(url, params=params)
     return t.add(queue_name=queue_name, delay=delay)
 
 
 def fetch_tasks(
         ts=None, 
         delay=0, 
-        limit=options.max_concurrent_tasks,
+        limit=options.max_tasks,
         queue_name=options.queue_name
     ):
     """Gets upto ``limit`` tasks from the queue, in timestamp order.
@@ -142,10 +144,23 @@ def fetch_tasks(
         ts = time.time() + delay
     results = r.send_command(
         'ZRANGEBYSCORE %s 0 %s LIMIT 0 %s\r\n' % (
-            queue_name,
+            _get_redis_key(queue_name),
             ts,
             limit
         )
     )
-    return [Task(**json.loads(item)) for item in results]
+    return [Task(**eval(item)) for item in results]
+
+
+def clear_queue(queue_name=options.queue_name):
+    r.delete(_get_redis_key(queue_name))
+
+
+def create_n_tasks(n, url, params={}):
+    i = n
+    while i > 0:
+        params.update({'i': i})
+        add_task(url, params=params)
+        i -= 1
+    
 

@@ -4,11 +4,12 @@
 """Misc helper functions.
 """
 
-import re
-starts_with_some_text_a_colon_and_two_fwd_slashes = re.compile(r'^[a-zA-Z]+:\/\/')
-
+import logging
 import urllib
 import urllib2
+
+import re
+starts_with_some_text_a_colon_and_two_fwd_slashes = re.compile(r'^[a-zA-Z]+:\/\/')
 
 from tornado.options import options
 
@@ -26,6 +27,8 @@ def normalise_url(url):
 
 
 def unicode_urlencode(params):
+    if not params:
+        return u''
     if isinstance(params, dict):
         params = params.items()
     return urllib.urlencode([(
@@ -43,16 +46,12 @@ def dispatch_request(url, params={}):
     try:
         response = urllib2.urlopen(request)
     except urllib2.HTTPError, err:
-        logging.warning('error dispatching request')
-        logging.warning(request)
-        logging.warning(err)
-        return e.code
+        _log = err.code == 204 and logging.debug or logging.warning
+        _log(err)
+        return err.code
     except Exception, err:
-        logging.warning('error dispatching request')
-        logging.warning(request)
         logging.warning(err)
         return 500
-    else:
-        return response.status
+    return response.code
     
 
