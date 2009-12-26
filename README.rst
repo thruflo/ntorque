@@ -95,7 +95,7 @@ times (at which point they get deleted).
 
 See the source code for more info and options, or just run it and use it ;)
 
-.. _`Google App Engine's taskqueue api`: http://code.google.com/appengine/docs/python/taskqueue/
+.. _taskqueue: http://code.google.com/appengine/docs/python/taskqueue/
 .. _redis: http://code.google.com/p/redis/
 .. _Tornado: http://www.tornadoweb.org/
 .. _SortedSet: http://code.google.com/p/redis/wiki/SortedSets
