@@ -7,9 +7,14 @@
 import re
 starts_with_some_text_a_colon_and_two_fwd_slashes = re.compile(r'^[a-zA-Z]+:\/\/')
 
-import urllib, urllib2
+import urllib
+import urllib2
 
-from config import options
+from tornado.options import options
+
+def do_nothing():
+    return None
+
 
 def normalise_url(url):
     if starts_with_some_text_a_colon_and_two_fwd_slashes.match(url):
@@ -37,6 +42,11 @@ def dispatch_request(url, params={}):
     request = urllib2.Request(url, postdata)
     try:
         response = urllib2.urlopen(request)
+    except urllib2.HTTPError, err:
+        logging.warning('error dispatching request')
+        logging.warning(request)
+        logging.warning(err)
+        return e.code
     except Exception, err:
         logging.warning('error dispatching request')
         logging.warning(request)

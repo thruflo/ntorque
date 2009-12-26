@@ -1,24 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Provides helper methods for adding tasks to and fetching
+"""Provides methods for adding tasks to and fetching
   tasks from a redis backed queue.
   
-  Trivial thanks to http://code.google.com/p/redis/wiki/SortedSets
+  The data is cached & persisted using 
+  `redis <http://code.google.com/p/redis/wiki/SortedSets>`_
+  
+  Redis stores strings, so we serialise and deserialise to and
+  from json.
 """
 
+import hashlib
 import time
-
-import redis as redis
-r = redis.Redis()
 
 try:
     import json
 except ImportError:
     import simplejson as json
 
-from config import options
+from tornado.options import options
+
 from utils import normalise_url
+
+import redis as redis
+r = redis.Redis()
+
+KEY_PREFIX = 'torque.'
+def get_redis_key(queue_name):
+    return u'%s%s' % (KEY_PREFIX, queue_name)
+
 
 class Task(object):
     """A task consists of a ``url`` to post some ``params`` to::
@@ -40,82 +51,87 @@ class Task(object):
       
     """
     
-    def __init__(self, url, params={}, queue_name=options.queue_name):
+    def __init__(self, url, params={}):
         self.doc = {
             'url': normalise_url(url), 
             'params': params
         }
-        self.queue_name = queue_name
     
     
-    def add(self, queue_name=None, delay=0):
+    @property
+    def url(self):
+        return self.doc['url']
+    
+    @property
+    def params(self):
+        return self.doc['params']
+    
+    
+    @property
+    def id(self):
+        task_string = json.dumps(self.doc)
+        return hashlib.sha1(task_string).hexdigest()
+    
+    
+    def add(self, queue_name=options.queue_name, delay=0):
         """Adds a task to the queue.
           
           See http://code.google.com/p/redis/wiki/ZaddCommand
           
           @@ because this is a sorted set, if the task is a
-          duplicate, it has its timestamp updated.  This may
-          or may not be quite what we want task-delay wise
-          but it certainly helps minimise processing.
+          duplicate, it has its timestamp updated.  This means:
+          
+          #. feature: that we can just re-add a task to amend it's ts
+          #. bug: that if a task is duplicated, e.g.: by different
+             processes adding it for two different reasons, the 
+             execution will be delayed until after the latter ts
+          
+          This second consequence means that, in some cases, a task
+          may be constantly delayed for ever through re-adding.
         """
         
         task_string = json.dumps(self.doc)
         ts = time.time() + delay
-        queue_name = queue_name and queue_name or self.queue_name
-        return r.zadd(queue_name, task_string, ts)
+        return r.zadd(get_redis_key(queue_name), task_string, ts)
     
-    def remove(self, queue_name=None):
+    def remove(self, queue_name=options.queue_name):
         """http://code.google.com/p/redis/wiki/ZremCommand
         """
         
         task_string = json.dumps(self.doc)
-        queue_name = queue_name and queue_name or self.queue_name
-        return r.zrem(queue_name, task_string)
+        return r.zrem(get_redis_key(queue_name), task_string)
+    
+    
+    def get_and_increment_error_count(self):
+        error_key = get_redis_key(u'%s_error_count' % self.id)
+        error_count = r.exists(error_key) and int(r.get(error_key)) or 0
+        error_count += 1
+        r.set(error_key, str(error_count))
+        r.expire(error_key, 86400)
+        return error_count
     
     
     def __repr__(self):
-        return u'<torque.client.Task queue=%s, url=%s, params=%s>' % (
-            self.queue_name,
+        return u'<torque.client.Task url=%s, params=%s>' % (
             self.doc['url'],
             self.doc['params']
         )
     
-
-
-def _ensure_task_string(what):
-    if isinstance(what, Task):
-        return json.dumps(what.doc)
-    elif isinstance(what, dict):
-        return json.dumps(what)
-    else: # isinstance(task, basestring)
-        return what
     
 
 
-def add(url, params, delay=0, queue_name=options.queue_name):
-    t = Task(url=url, params=params, queue_name=queue_name)
-    return t.add(delay=delay)
-
-def update(task, delay=0, queue_name=options.queue_name):
-    task_string = _ensure_task_string(task)
-    ts = time.time() + delay
-    return r.zadd(queue_name, task_string, ts)
-
-def remove(task_string, queue_name=options.queue_name):
-    task_string = _ensure_task_string(task)
-    return r.zrem(queue_name, task_string)
+def add_task(url, params, queue_name=options.queue_name, delay=0):
+    t = Task(url=url, params=params)
+    return t.add(queue_name=queue_name, delay=delay)
 
 
-def fetch(
+def fetch_tasks(
         ts=None, 
         delay=0, 
-        decode=True, 
-        limit=options.max_concurrent_tasks, 
+        limit=options.max_concurrent_tasks,
         queue_name=options.queue_name
     ):
     """Gets upto ``limit`` tasks from the queue, in timestamp order.
-      
-      If ``decode`` is true, returns the tasks as dicts.
       
       See http://code.google.com/p/redis/wiki/ZrangebyscoreCommand
     """
@@ -124,8 +140,6 @@ def fetch(
         ts = time.time()
     elif ts is None:
         ts = time.time() + delay
-    if limit is None:
-        limit = 'inf'
     results = r.send_command(
         'ZRANGEBYSCORE %s 0 %s LIMIT 0 %s\r\n' % (
             queue_name,
@@ -133,21 +147,5 @@ def fetch(
             limit
         )
     )
-    if not decode:
-        return results
-    return [json.loads(item) for item in results]
-
-
-def get_and_increment_error_count(task_string):
-    task_string = _ensure_task_string(task_string)
-    error_key = u'%s_error_count'
-    if r.exists(error_key):
-        error_count = int(r.get(error_key))
-    else:
-        error_count = 0
-    error_count += 1
-    r.set(error_key, str(error_count))
-    r.expire(error_key, 172800)
-    return error_count
-
+    return [Task(**json.loads(item)) for item in results]
 

@@ -34,7 +34,8 @@ setup(
             'findfiles = setuptools_git:gitlsfiles'
         ],
         'console_scripts': [
-            'run-taskqueue = torque.taskqueue:main'
+            'torque-serve = torque.serve:main',
+            'torque-process = torque.process:main'
         ]
     }
 )
