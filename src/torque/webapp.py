@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Tornado web application, serving:
+"""Tornado web application.
+  
+  Serves:
+  
   * ``/add_task``
   * ``/concurrent_executer``
   
@@ -9,23 +12,22 @@
       
       $ ./bin/torque-serve
   
+  Add ``--help`` to see the configuration options.
 """
 
 import logging
 import math
 import time
 
-try:
-    import json
-except ImportError:
-    import simplejson as json
-
 from tornado import ioloop, httpclient, httpserver, web
 from tornado import options as tornado_options
-from tornado.options import options
+from tornado.options import define, options
+from tornado.escape import json_decode, json_encode
 
-import config
-from client import add_task, fetch_tasks
+define('debug', default=False, help='debug mode')
+define('port', default=8889, help='port to run on')
+
+from client import add_task, fetch_tasks, count_tasks
 from utils import do_nothing, unicode_urlencode
 
 class AddTask(web.RequestHandler):
@@ -50,7 +52,7 @@ class AddTask(web.RequestHandler):
         url = self.get_argument('url')
         # params are passed in empty if not provided
         kwargs = {
-            'params': json.loads(self.get_argument('params', '{}')),
+            'params': json_decode(self.get_argument('params', '{}')),
         }
         # queue_name and delay are optional
         queue_name = self.get_argument('queue_name', False)
@@ -69,7 +71,10 @@ class ConcurrentExecuter(web.RequestHandler):
       non-blocking requests.
       
       If the queue is empty, returns 204 to indicate there's
-      no content to process.
+      no content to process.  Unless the ``check_pending`` argument
+      has been provided and is True, at which point it checks the 
+      queue to see if any tasks are pending and if none are, returns
+      205 to indicate that the queue has been completely emptied.
       
       If an individual task errors, its ``ts`` is incremented
       according to a backoff algorithm.
@@ -80,23 +85,31 @@ class ConcurrentExecuter(web.RequestHandler):
     
     @web.asynchronous
     def post(self):
-        self.start_time = time.time()
         # queue_name and limit are optional
         kwargs = {}
         queue_name = self.get_argument('queue_name', False)
+        limit = self.get_argument('limit', False)
         if queue_name:
             kwargs['queue_name'] = queue_name
-        limit = self.get_argument('limit', False)
         if limit:
             kwargs['limit'] = limit
         tasks = fetch_tasks(**kwargs)
-        if len(tasks) == 0:
+        len_tasks = len(tasks)
+        if len_tasks == 0:
             self.set_status(204)
+            if self.get_argument('check_pending', False):
+                kwargs = queue_name and {'queue_name': queue_name} or {}
+                if count_tasks(**kwargs) < 1:
+                    self.set_status(205)
             self.finish()
         else:
-            self.kwargs = queue_name and {'queue_name': queue_name} or {}
+            # maintain a list of ids, which we pop from in _handle_response
+            # so that we know when we're done
             self.task_ids = []
-            http = httpclient.AsyncHTTPClient(max_clients=options.max_tasks)
+            # build a dict of {task_id: status_code, ...} for each task
+            # to return as the response
+            self.status_codes = {}
+            http = httpclient.AsyncHTTPClient(max_clients=len_tasks)
             for task in tasks:
                 http.fetch(
                     task.url,
@@ -104,29 +117,22 @@ class ConcurrentExecuter(web.RequestHandler):
                     body=unicode_urlencode(task.params),
                     callback=self.async_callback(
                         self._handle_response,
-                        task = task
+                        task_id = task.id
                     )
                 )
                 self.task_ids.append(task.id)
             
         
     
-    def _handle_response(self, response, task):
-        if not response.error:
-            task.remove(**self.kwargs)
-        else: 
-            error_count = task.get_and_increment_error_count()
-            if error_count > options.max_task_errors:
-                task.remove(**self.kwargs)
-            else: # backoff scheduling it again
-                delay = math.pow(1 + options.min_delay, error_count)
-                if delay > options.max_task_delay:
-                    delay = options.max_task_delay
-                task.add(delay=delay, **self.kwargs)
-        # if all the requests have returned
-        self.task_ids.remove(task.id)
+    def _handle_response(self, response, task_id):
+        # remove the task from the pending list
+        self.task_ids.remove(task_id)
+        # store the response status code against the task id
+        self.status_codes[task_id] = response.code
+        # if all the tasks have returned
         if len(self.task_ids) == 0:
             self.set_status(200)
+            self.write(self.status_codes)
             self.finish()
         
     

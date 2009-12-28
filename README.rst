@@ -7,8 +7,8 @@ provide a similar pattern to Google App Engine's taskqueue_.
 
 To use it, you need to run a redis_ database, a console script that exposes
 a Tornado_ web application and one process per task queue.  You can then add 
-tasks to one or more queues, either using a python client api provides or via 
-an HTTP api (or indeed by adding them directly to the database).
+tasks to one or more queues, either using the python client api that torque 
+provides or via an HTTP api (or indeed by adding them directly to the database).
 
 Tasks consist of a ``url`` and some ``params``.  When a task is executed, torque
 will post the params to the url.  If the task errors, it backs off steeply until
@@ -60,7 +60,7 @@ To add a task to the queue, post to ``/add_task`` with two params:
   to post to the webhook you're requesting
 
 An example in python (with the Tornado application available on ``localhost``,
-running on the default port of ``8889``) would be::
+running on port ``8889``) would be::
 
     import json
     import urllib
@@ -69,7 +69,7 @@ running on the default port of ``8889``) would be::
         'url': 'http://mywebservice.com/hooks/do/foo',
         'params': json.dumps({'foo', 'somevalue', 'baz': 99})
     }
-    target_url = 'http://localhost:8090/hooks/add'
+    target_url = 'http://localhost:8889/hooks/add'
     urllib.urlopen(target_url, urllib.urlencode(mytask))
 
 This queued a POST request to ``http://mywebservice.com/hooks/do/foo`` with

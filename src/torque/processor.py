@@ -7,47 +7,194 @@
 """
 
 import logging
+import math
 import time
+import urllib2
 
 from tornado import options as tornado_options
-from tornado.options import options
+from tornado.options import define, options
+from tornado.escape import json_decode, json_encode
 
-import config
-from utils import dispatch_request, do_nothing
+from client import get_task
+from utils import do_nothing, unicode_urlencode
+
+# external config you may want to provide unless you're processing
+# the default queue on the default address
+define(
+    'server_address', default='http://localhost:8889', 
+    help='where is the concurrent executer running?'
+)
+
+# are we processing a queue ad infinitum, or just once until empty?
+define(
+    'finish_on_empty', default=False, type=bool,
+    help='should ``QueueProcessor.process`` finish once the queue is empty?'
+)
+
+# config specifying how to deal with erroring tasks (these defaults 
+# are designed for quite a forgiving, long running queue)
+define(
+    'max_task_errors', default=100, type=int,
+    help='how many times can a task error?'
+)
+define(
+    'max_task_delay', default=1111, type=int,
+    help='maximum time an erroring task can be delayed for'
+)
+
+# internal config relating to the polling delay / backoff algorithms
+# (all times are in seconds)
+define(
+    'min_delay', default=0.2, type=float,
+    help='how long to wait between polling when tasks pending'
+)
+define(
+    'max_empty_delay', default=1.6, type=float,
+    help='maximum wait when there are no tasks pending'
+)
+define(
+    'max_error_delay', default=240, type=int,
+    help='maximum wait when the concurrent executer is erroring'
+)
+define(
+    'empty_multiplier', default=1.5, type=float,
+    help='exponentially multiply the delay by when no tasks are pending'
+)
+define( 
+    'error_multiplier', default=4.0, type=float,
+    help='exponentially multiply the delay by when something is erroring' 
+)
+
+class QueueProcessor(object):
+    """Takes a range if config and processes a queue.
+      
+      You can use it in two ways.  Firstly, you can process a queue
+      ad infinitum::
+      
+          >>> qp = QueueProcessor()
+          >>> qp.process(finish_on_empty=False)
+      
+      Or you can process a queue until it's empty::
+      
+          >>> qp.process(finish_on_empty=True)
+          True
+      
+      If you specify ``finish_on_empty=True`` then the method returns
+      ``True`` if the queue was cleared successfully.  Or it will
+      return ``False`` if it errored.
+      
+      Note that a task erroring won't error the queue processing.
+      Instead, the task will be rescheduled ``max_task_errors`` times,
+      backing off exponentially upto ``max_task_delay`` seconds.
+      
+      It's worth noting that if you have an erroring task, and relatively 
+      high values for ``max_task_errors`` and ``max_task_delay``, it may
+      take a while to finish!  In this case, you probably want to lower
+      the values for task errors and task delay.
+    """
+    
+    def __init__(
+            self, server_address=None, queue_name=None, limit=None,
+            max_task_errors=None, max_task_delay=None, min_delay=None,
+            error_multiplier=None, empty_multiplier=None,
+            max_empty_delay=None, max_error_delay=None
+        ):
+        self.server_address = server_address and server_address or options.server_address
+        self.queue_name = queue_name and queue_name or options.queue_name
+        self.limit = limit and limit or options.limit
+        self.max_task_errors = max_task_errors and max_task_errors \
+                               or options.max_task_errors
+        self.max_task_delay = max_task_delay and max_task_delay or options.max_task_delay
+        self.min_delay = min_delay and min_delay or options.min_delay
+        self.error_multiplier = error_multiplier and error_multiplier \
+                                or options.error_multiplier
+        self.empty_multiplier = empty_multiplier and empty_multiplier \
+                                or options.empty_multiplier
+        self.max_empty_delay = max_empty_delay and max_empty_delay \
+                                or options.max_empty_delay
+        self.max_error_delay = max_error_delay and max_error_delay \
+                                or options.max_error_delay
+        
+    
+    def _dispatch(self, url, params={}):
+        request = urllib2.Request(url, unicode_urlencode(params))
+        response = None
+        try:
+            response = urllib2.urlopen(request)
+        except urllib2.HTTPError, err:
+            _log = 204 <= err.code <= 205 and logging.debug or logging.warning
+            _log(err)
+            status = err.code
+        except Exception, err:
+            logging.warning(err)
+            status = 500
+        else:
+            status = response.code
+            response = json_decode(response.read())
+        return response, status
+    
+    def process(self, finish_on_empty=None):
+        finish_on_empty = finish_on_empty and finish_on_empty or options.finish_on_empty
+        backoff = self.min_delay
+        url = u'%s/concurrent_executer' % self.server_address
+        params = {
+            'queue_name': self.queue_name, 
+            'limit': self.limit,
+            'check_pending': finish_on_empty
+        }
+        while True:
+            logging.info('.')
+            response, status = self._dispatch(url=url, params=params)
+            # first process the tasks
+            # then deal with the backoff
+            logging.debug('_dispatch status: %s' % status)
+            if status == 200:
+                for task_id, status_code in response.iteritems():
+                    logging.debug('task_id status: %s' % status_code)
+                    t = get_task(task_id, queue_name=self.queue_name)
+                    logging.debug(t)
+                    if 200 <= status_code < 300:
+                        t.remove()
+                    else: 
+                        error_count = t.get_and_increment_error_count()
+                        if error_count > self.max_task_errors:
+                            t.remove()
+                        else: 
+                            delay = math.pow(1 + self.min_delay, error_count)
+                            if delay > self.max_task_delay:
+                                delay = self.max_task_delay
+                            t.add(delay=delay)
+                if backoff > self.min_delay:
+                    backoff = backoff / self.error_multiplier
+                    if backoff < self.min_delay:
+                        backoff = self.min_delay
+            elif status == 204 or status == 205:
+                if status == 205 and finish_on_empty:
+                    return True
+                backoff = backoff * self.empty_multiplier
+                if backoff > self.max_empty_delay:
+                    backoff = self.max_empty_delay
+            else: # there was an unexpected error
+                if finish_on_empty:
+                    return False
+                backoff = backoff * self.error_multiplier
+                if backoff > self.max_error_delay:
+                    backoff = self.max_error_delay
+            time.sleep(backoff)
+        
+    
+    
+
 
 def main():
     # hack around an OSX error
     tornado_options.enable_pretty_logging = do_nothing
     # parse the command line options
     tornado_options.parse_command_line()
-    # init
-    backoff = options.min_delay
-    url = u'%s:%s/concurrent_executer' % (
-        options.address,
-        options.port
-    )
-    params = {
-        'queue_name': options.queue_name,
-        'limit': options.max_tasks
-    }
-    # loop
-    while True:
-        logging.info('.')
-        status = dispatch_request(url=url, params=params)
-        if status == 200:
-            if backoff > options.min_delay:
-                backoff = backoff / options.error_multiplier
-                if backoff < options.min_delay:
-                    backoff = options.min_delay
-        elif status == 204: # there were no tasks to execute
-            backoff = backoff * options.empty_multiplier
-            if backoff > options.max_empty_delay:
-                backoff = options.max_empty_delay
-        else: # there was an unexpected error
-            backoff = backoff * options.error_multiplier
-            if backoff > options.max_error_delay:
-                backoff = options.max_error_delay
-        time.sleep(backoff)
+    # process the queue
+    success = QueueProcessor().process()
+    # if there is one, report the result
+    logging.info(success and 'processed successfully' or 'processing failed')
     
 
 
