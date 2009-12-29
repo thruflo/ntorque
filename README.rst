@@ -8,7 +8,7 @@ solve two problems in the context of a web application:
 #. you want to do something later
 #. you want to do a number of things in parallel
 
-There are many ways of approaching these problems.  For example, in Python_, you 
+There are many ways of approaching these problems.  For example, in python, you 
 might look at Twisted_, Celery_ and Stackless_.  Torque is inspired by Google App
 Engine's taskqueue_, which models_ tasks as webhooks_.  
 
@@ -29,10 +29,10 @@ You can process queues ad infinitum, or until they are empty.  See
 You can add tasks to the queue in two ways:
 
 #. by posting an HTTP request to the Tornado_ application run by ``./bin/torque-serve``
-#. or by using the Python_ client api in ``torque.client``
+#. or by using the python client api in ``torque.client``
 
 This first method allows you to use Torque from any programming language.  The second
-makes it much simpler if you're using Python_.
+makes it much simpler if you're using python.
 
 
 Install
