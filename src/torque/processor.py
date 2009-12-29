@@ -162,7 +162,7 @@ class QueueProcessor(object):
         return response, status
     
     
-    def process(self, finish_on_empty=None):
+    def process(self, finish_on_empty=False):
         finish_on_empty = finish_on_empty and finish_on_empty or options.finish_on_empty
         backoff = self.min_delay
         url = u'%s/concurrent_executer' % self.server_address
