@@ -9,14 +9,14 @@ solve two problems in the context of a web application:
 #. you want to do a number of things in parallel
 
 There are many ways of approaching these problems.  For example, in python, you 
-might look at Twisted_, Celery_ and Stackless_.  Torque is inspired by Google App
-Engine's taskqueue_, which models_ tasks as webhooks_.  
+might look at Twisted_, Celery_ and Stackless_.  
 
-This approach allows you to handle tasks within your normal web application
-environment by writing request handlers, just as you would to handle a user 
-initiated request.
+Torque is inspired by Google App Engine's taskqueue_, which models_ tasks as 
+webhooks_.  This approach allows you to handle tasks within your normal web 
+application environment by writing request handlers, just as you would to handle 
+a user initiated request.
 
-To use it, you need to run:
+To use it, you need to run three processes:
 
 #. a redis_ database
 #. ``./bin/torque-serve``, which exposes a Tornado_ application (by default on
@@ -33,6 +33,42 @@ You can add tasks to the queue in two ways:
 
 This first method allows you to use Torque from any programming language.  The second
 makes it much simpler if you're using python.
+
+To add a task using an HTTP request, post to ``/add_task`` with two params:
+
+* ``url`` which is the url to the webhook you want the task to request
+* ``params`` which is a json encoded dictionary of the params you want
+  to post to the webhook you're requesting
+
+An example in python (with the Tornado application available on ``localhost``,
+running on port ``8889``) would be::
+
+    import json
+    import urllib
+    
+    mytask = {
+        'url': 'http://mywebservice.com/hooks/do/foo',
+        'params': json.dumps({'foo', 'somevalue', 'baz': 99})
+    }
+    target_url = 'http://localhost:8889/hooks/add'
+    urllib.urlopen(target_url, urllib.urlencode(mytask))
+
+This queued a POST request to ``http://mywebservice.com/hooks/do/foo`` with
+the params ``foo=somevalue`` and ``baz=99`` to be made as soon as possible.
+
+You can do something similar using any programming language that can make url 
+requests.  However, if you are using python, it's much simpler to use the client 
+api that Torque provides::
+
+    from torque.client import add_task
+    t = add_task(url='http://mywebservice.com/hooks/do/foo', params={'a': 1})
+
+Note that this doesn't require json encoding the params.  For all the client api
+options, see ``torque.client.Task.__doc__``.
+
+Individual tasks backoff exponentially if they error, upto a maximum backoff delay
+that's configurable as ``--max_task_delay``, until they error ``--max_task_errors`` 
+times (at which point they get deleted).
 
 
 Install
@@ -73,50 +109,12 @@ Or to process the default queue once until empty you might use::
 
     ./bin/torque-process --finish_on_empty=true --max_task_errors=3
 
-
-Use
----
-
-To add a task to the queue, post to ``/add_task`` with two params:
-
-* ``url`` which is the url to the webhook you want the task to request
-* ``params`` which is a json encoded dictionary of the params you want
-  to post to the webhook you're requesting
-
-An example in python (with the Tornado application available on ``localhost``,
-running on port ``8889``) would be::
-
-    import json
-    import urllib
+Or to do exactly the same from python code::
     
-    mytask = {
-        'url': 'http://mywebservice.com/hooks/do/foo',
-        'params': json.dumps({'foo', 'somevalue', 'baz': 99})
-    }
-    target_url = 'http://localhost:8889/hooks/add'
-    urllib.urlopen(target_url, urllib.urlencode(mytask))
+    from torque.processor import QueueProcessor
+    QueueProcessor(max_task_errors=3).process(finish_on_empty=true)
 
-This queued a POST request to ``http://mywebservice.com/hooks/do/foo`` with
-the params ``foo=somevalue`` and ``baz=99`` to be made as soon as possible.
-
-You can do something similar using any programming language that can make
-url requests.  However, if you are using python, you can use the client api
-that torque provides::
-
-    >>> from torque.client import add_task
-    >>> t = add_task(url='http://mywebservice.com/hooks/do/foo', params={'a': 1})
-
-Note that this doesn't require json encoding the params.  You can specify a 
-delay for the task, so that it's executed *after* (but not necessarily *at*) 
-a number of seconds::
-
-    add_task(url='...', params={...}, delay=20) # will execute after 20 seconds
-
-Individual tasks backoff exponentially if they error, upto a maximum backoff delay
-that's configurable as ``--max_task_delay``, until they error ``--max_task_errors`` 
-times (at which point they get deleted).
-
-See the source code for more info and options, or just run it and use it ;)
+Read the source code for more information.
 
 .. _webhooks: http://wiki.webhooks.org/
 .. _models: http://code.google.com/appengine/docs/python/taskqueue/overview.html#Task_Concepts
