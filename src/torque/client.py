@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """Provides methods for adding and fetching tasks
-  to and from a redis backed queue.
+  to and from a redis_ backed queue.
   
-  The data is persisted using a `redis sorted set
-  <http://code.google.com/p/redis/wiki/SortedSets>`_
+  .. _redis: http://code.google.com/p/redis
 """
 
 import hashlib
@@ -26,7 +25,7 @@ define(
     help='stub to expand relative task urls with'
 )
 define(
-    'queue_name', default='default_taskqueue', 
+    'queue_name', default='default', 
     help='which queue are we processing?'
 )
 define(
@@ -34,40 +33,96 @@ define(
     help='how many tasks do you want to process concurrently?'
 )
 
-_KEY_PREFIX = u'thruflo.torque.'
+KEY_PREFIX = u'thruflo.torque.'
 def _get_redis_key(s):
     """Adds ``KEY_PREFIX`` to the start of all redis keys, to lower
       the risk of a namespace collision.
     """
     
-    return u'%s%s' % (_KEY_PREFIX, s)
+    return u'%s%s' % (KEY_PREFIX, s)
     
 
 
 class Task(object):
     """A task consists of a ``url`` to post some ``params`` to::
+          
+          >>> from torque.client import *
+          >>> options.queue_name = 'doctests'
+          >>> clear_queue()
+          ...
+          >>> t = Task(url='http://localhost/do/foo', params={'a': 1})
       
-          >>> task = Task(url='/hooks/foo', params={'a': 1})
+      If you want to put the task in a queue that's not the default,
+      specify it when creating the task instance::
+          
+          >>> t = Task(
+          ...     url='http://localhost/do/foo', 
+          ...     params={'a': 1}, 
+          ...     queue_name='my_queue'
+          ... )
       
-      Add it to the queue::
+      A ``Task`` instance has ``id``, ``url`` and ``params`` properties::
       
-          >>> task.add()
+          >>> t.id
+          '189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c'
+          >>> t.url
+          'http://localhost/do/foo'
+          >>> t.params
+          {'a': 1}
       
-      You can schedule the task to be executed *after* a number of
+      You can add it to the queue::
+      
+          >>> t.add()
+          1
+      
+      If it wasn't in the queue already, ``add`` returns ``1``.  Otherwise
+      ``add`` returns ``0``::
+          
+          >>> t.add()
+          0
+      
+      You can schedule the task to be executed *after* ``delay`` number of
       seconds in the future::
+          
+          >>> t.add(delay=5)
+          0
       
-          >>> task.add(delay=2)
+      You can remove it from the queue.  This returns ``1`` if the task was 
+      queued, or ``0`` if not::
+          
+          >>> t.remove()
+          1
+          >>> t.remove()
+          0
       
-      And you can specify which queue to stick it in::
-      
-          >>> task.add(queue_name='foo')
+      And you can increment an error count::
+          
+          >>> t.get_and_increment_error_count()
+          1
+          >>> t.get_and_increment_error_count()
+          2
+          >>> t.get_and_increment_error_count()
+          3
       
       A task, once added, is actually persisted in redis via three
-      entries:
+      entries.  The task_string is stored against ``_k``, which is generated
+      from the ``queue_name`` and ``id``::
+          
+          >>> t._k
+          u'thruflo.torque.my_queue.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c'
       
-      #. the task_string is stored against the id
-      #. an error count is stored against id_errors
-      #. the id is stored in a sorted set, scored (i.e.: sorted) by timestamp
+      And error count is stored against ``_ek``::
+      
+          >>> t._ek
+          u'thruflo.torque.my_queue.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c.errors'
+          
+      The id is stored in a redis SortedSet_, scored (i.e.: sorted) by timestamp,
+      where the set has the key ``_qk``::
+      
+          >>> r.zscore(t._qk, t.id)
+          Decimal("1262087892.3099999")
+      
+      .. _SortedSet: http://code.google.com/p/redis/wiki/SortedSets
     """
     
     def __init__(self, url, params={}, queue_name=None):
@@ -137,19 +192,23 @@ class Task(object):
         
     
     def remove(self):
-        """Delete_ the task_string and error count and remove_ the id 
-          from the sorted set.
+        """Remove_ the id from the sorted set, delete_ the error count
+          and then the task_string.
           
-          .. _Delete: http://code.google.com/p/redis/wiki/DelCommand
-          .. _remove: http://code.google.com/p/redis/wiki/ZremCommand
+          .. _Remove: http://code.google.com/p/redis/wiki/ZremCommand
+          .. _delete: http://code.google.com/p/redis/wiki/DelCommand
         """
         
-        # delete the task_string & error count
-        r.delete(self._k)
+        # remove the task
+        result = r.zrem(self._qk, self._id)
+        
+        # delete the error count
         r.delete(self._ek)
         
-        # remove the task
-        return r.zrem(self._qk, self._id)
+        # delete the task_string last
+        r.delete(self._k)
+        
+        return result
         
     
     def get_and_increment_error_count(self):
@@ -163,23 +222,54 @@ class Task(object):
     
     
     def __repr__(self):
-        return u'<torque.client.Task %s %s>' % (self._id, self._task['url'])
+        return u'<torque.client.Task %s>' % (self._k)
     
     
 
 
 def add_task(url, params={}, queue_name=None, delay=0):
-    """Shortcut function to create and add a task.
+    """Shortcut function to create and add a ``Task``::
+      
+          >>> from torque.client import *
+          >>> options.queue_name = 'doctests'
+          >>> clear_queue()
+          ...
+          >>> t = add_task(url='http://localhost/do/foo', params={'a': 1}, delay=2)
+          >>> t.id
+          '189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c'
+          >>> t.remove()
+          1
+      
     """
     
     queue_name = queue_name and queue_name or options.queue_name
     
     t = Task(url, params=params, queue_name=queue_name)
-    return t.add(delay=delay)
+    t.add(delay=delay)
+    return t
     
 
 def get_task(task_id, queue_name=None):
-    """Returns a ``Task`` instance corresponding to the ``task_id``.
+    """Returns a queued ``Task`` instance corresponding to the ``task_id``.
+      
+      Raises a ``KeyError`` if the task is not in the queue::
+          
+          >>> from torque.client import *
+          >>> options.queue_name = 'doctests'
+          >>> clear_queue()
+          ...
+          >>> t = Task(url='http://localhost/do/foo', params={'a': 1})
+          >>> t.add()
+          1
+          >>> get_task(t.id)
+          <torque.client.Task thruflo.torque.default.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c>
+          >>> t.remove()
+          1
+          >>> get_task(t.id)
+          Traceback (most recent call last):
+          ...
+          KeyError: 'Task id ``189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c`` is not in queue ``default``'
+      
     """
     
     queue_name = queue_name and queue_name or options.queue_name
@@ -188,6 +278,8 @@ def get_task(task_id, queue_name=None):
     
     # get the task_string corresponding to the task_id provided
     task_string = r.get(k)
+    if task_string is None:
+        raise KeyError('Task id ``%s`` is not in queue ``%s``' % (task_id, queue_name))
     
     # decode into a python dict
     data = json_decode(task_string)
@@ -199,6 +291,57 @@ def get_task(task_id, queue_name=None):
 def fetch_tasks(ts=None, delay=0, limit=None, queue_name=None):
     """Gets upto ``limit`` tasks from the queue, in timestamp order,
       using the ZRANGEBYSCORE_ command.
+      
+      No tasks pending returns an empty list::
+          
+          >>> import time
+          >>> from torque.client import *
+          >>> options.queue_name = 'doctests'
+          >>> clear_queue()
+          ...
+          >>> fetch_tasks()
+          []
+      
+      Create three tasks, ``a``, ``b`` and ``c``::
+          
+          >>> a = Task('a')
+          >>> b = Task('b')
+          >>> c = Task('c')
+      
+      Add task ``a`` scheduled immediately::
+          
+          >>> a.add()
+          1
+          
+      Add task ``b`` scheduled after 6 seconds time::
+          
+          >>> b.add(delay=6)
+          1
+      
+      Add task ``c`` scheduled after 3 seconds::
+          
+          >>> c.add(delay=3)
+          1
+      
+      ``a`` is the only immediate pending task::
+          
+          >>> pending = fetch_tasks()
+          >>> pending
+          [<torque.client.Task thruflo.torque.default.b1ae1ca8c4af1d10b7606ed5e49ad88b9e0d35e89a435893414976c4>]
+          >>> [t.id for t in pending] == [a.id]
+          True
+      
+      Wait 3 seconds and now ``a`` and ``c`` are pending, in that order::
+          
+          >>> time.sleep(3)
+          >>> [t.id for t in fetch_tasks()] == [a.id, c.id]
+          True
+          
+      Wait another 3 seconds::
+          
+          >>> time.sleep(3)
+          >>> [t.id for t in fetch_tasks()] == [a.id, c.id, b.id]
+          True
       
       .. _ZRANGEBYSCORE: http://code.google.com/p/redis/wiki/ZrangebyscoreCommand
     """
@@ -240,14 +383,36 @@ def count_tasks(queue_name=None):
 
 
 def clear_queue(queue_name=None):
+    """Remove all of the tasks from a queue::
+      
+          >>> clear_queue()
+          0
+          >>> add_task('a')
+          <torque.client.Task thruflo.torque.default.b1ae1ca8c4af1d10b7606ed5e49ad88b9e0d35e89a435893414976c4>
+          >>> add_task('b')
+          <torque.client.Task thruflo.torque.default.f84ff8757572c751e8e54ca7b1351906ec6260ac944d5f0d2728c188>
+          >>> clear_queue()
+          2
+      
+    """
     
     queue_name = queue_name and queue_name or options.queue_name
     
+    # delete the sorted set
     qk = _get_redis_key(queue_name)
     r.delete(qk)
     
+    # delete any associated task strings and error counts
+    ks = r.keys(u'%s*' % qk)
+    if ks:
+        return r.send_command(u'DEL %s\r\n' % u' '.join(ks))
+    return 0
+    
+
 
 def create_n_tasks(n, url, params={}, queue_name=None):
+    """Function designed to ease manual testing.
+    """
     
     queue_name = queue_name and queue_name or options.queue_name
     
