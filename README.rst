@@ -96,6 +96,15 @@ Start the `Tornado`_ application::
 
     $ ./bin/torque-serve
 
+If you want to run the tests, use::
+
+    $ ./bin/nosetests -w ./src/torque --with-doctest
+    .......
+    ----------------------------------------------------------------------
+    Ran 7 tests in 22.627s
+    
+    OK
+
 Start the default task queue running ad infinitum::
 
     $ ./bin/torque-process
