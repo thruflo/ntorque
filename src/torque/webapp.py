@@ -46,7 +46,6 @@ class AddTask(web.RequestHandler):
     def get(self):
         self.post()
     
-    @web.asynchronous
     def post(self):
         # url is required
         url = self.get_argument('url')

@@ -46,10 +46,7 @@ def _get_redis_key(s):
 class Task(object):
     """A task consists of a ``url`` to post some ``params`` to::
           
-          >>> from torque.client import *
-          >>> options.queue_name = 'doctests'
-          >>> clear_queue()
-          ...
+          >>> n = clear_queue()
           >>> t = Task(url='http://localhost/do/foo', params={'a': 1})
       
       If you want to put the task in a queue that's not the default,
@@ -58,7 +55,7 @@ class Task(object):
           >>> t = Task(
           ...     url='http://localhost/do/foo', 
           ...     params={'a': 1}, 
-          ...     queue_name='my_queue'
+          ...     queue_name='doctests'
           ... )
       
       A ``Task`` instance has ``id``, ``url`` and ``params`` properties::
@@ -109,19 +106,20 @@ class Task(object):
       from the ``queue_name`` and ``id``::
           
           >>> t._k
-          u'thruflo.torque.my_queue.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c'
+          u'thruflo.torque.doctests.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c'
       
       And error count is stored against ``_ek``::
       
           >>> t._ek
-          u'thruflo.torque.my_queue.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c.errors'
+          u'thruflo.torque.doctests.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c.errors'
           
       The id is stored in a redis SortedSet_, scored (i.e.: sorted) by timestamp,
       where the set has the key ``_qk``::
       
-          >>> r.zscore(t._qk, t.id)
-          Decimal("1262087892.3099999")
-      
+          >>> t.add()
+          1
+          >>> ts = r.zscore(t._qk, t._id)
+          
       .. _SortedSet: http://code.google.com/p/redis/wiki/SortedSets
     """
     
@@ -230,10 +228,7 @@ class Task(object):
 def add_task(url, params={}, queue_name=None, delay=0):
     """Shortcut function to create and add a ``Task``::
       
-          >>> from torque.client import *
-          >>> options.queue_name = 'doctests'
-          >>> clear_queue()
-          ...
+          >>> n = clear_queue()
           >>> t = add_task(url='http://localhost/do/foo', params={'a': 1}, delay=2)
           >>> t.id
           '189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c'
@@ -254,21 +249,18 @@ def get_task(task_id, queue_name=None):
       
       Raises a ``KeyError`` if the task is not in the queue::
           
-          >>> from torque.client import *
-          >>> options.queue_name = 'doctests'
-          >>> clear_queue()
-          ...
+          >>> n = clear_queue()
           >>> t = Task(url='http://localhost/do/foo', params={'a': 1})
           >>> t.add()
           1
           >>> get_task(t.id)
-          <torque.client.Task thruflo.torque.default.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c>
+          <torque.client.Task thruflo.torque.doctests.189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c>
           >>> t.remove()
           1
           >>> get_task(t.id)
           Traceback (most recent call last):
           ...
-          KeyError: 'Task id ``189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c`` is not in queue ``default``'
+          KeyError: 'Task id ``189d29c7e6d63d810d307203a37e204999a5ffbefa8ff4bc40554a2c`` is not in queue ``doctests``'
       
     """
     
@@ -294,11 +286,7 @@ def fetch_tasks(ts=None, delay=0, limit=None, queue_name=None):
       
       No tasks pending returns an empty list::
           
-          >>> import time
-          >>> from torque.client import *
-          >>> options.queue_name = 'doctests'
-          >>> clear_queue()
-          ...
+          >>> n = clear_queue()
           >>> fetch_tasks()
           []
       
@@ -313,33 +301,33 @@ def fetch_tasks(ts=None, delay=0, limit=None, queue_name=None):
           >>> a.add()
           1
           
-      Add task ``b`` scheduled after 6 seconds time::
+      Add task ``b`` scheduled after 2 seconds time::
           
-          >>> b.add(delay=6)
+          >>> b.add(delay=2)
           1
       
-      Add task ``c`` scheduled after 3 seconds::
+      Add task ``c`` scheduled after 1 seconds::
           
-          >>> c.add(delay=3)
+          >>> c.add(delay=1)
           1
       
       ``a`` is the only immediate pending task::
           
           >>> pending = fetch_tasks()
           >>> pending
-          [<torque.client.Task thruflo.torque.default.b1ae1ca8c4af1d10b7606ed5e49ad88b9e0d35e89a435893414976c4>]
+          [<torque.client.Task thruflo.torque.doctests.b1ae1ca8c4af1d10b7606ed5e49ad88b9e0d35e89a435893414976c4>]
           >>> [t.id for t in pending] == [a.id]
           True
       
-      Wait 3 seconds and now ``a`` and ``c`` are pending, in that order::
+      Wait 1 second and now ``a`` and ``c`` are pending, in that order::
           
-          >>> time.sleep(3)
+          >>> time.sleep(1)
           >>> [t.id for t in fetch_tasks()] == [a.id, c.id]
           True
           
-      Wait another 3 seconds::
+      Wait another second::
           
-          >>> time.sleep(3)
+          >>> time.sleep(1)
           >>> [t.id for t in fetch_tasks()] == [a.id, c.id, b.id]
           True
       
@@ -371,6 +359,13 @@ def fetch_tasks(ts=None, delay=0, limit=None, queue_name=None):
 
 def count_tasks(queue_name=None):
     """Returns whether there are any_ tasks in a queue.
+          
+          >>> n = clear_queue()
+          >>> count_tasks()
+          0
+          >>> t = add_task('a')
+          >>> count_tasks()
+          1
       
       .. _any: http://code.google.com/p/redis/wiki/ZcardCommand
     """
@@ -385,12 +380,11 @@ def count_tasks(queue_name=None):
 def clear_queue(queue_name=None):
     """Remove all of the tasks from a queue::
       
-          >>> clear_queue()
-          0
+          >>> n = clear_queue()
           >>> add_task('a')
-          <torque.client.Task thruflo.torque.default.b1ae1ca8c4af1d10b7606ed5e49ad88b9e0d35e89a435893414976c4>
+          <torque.client.Task thruflo.torque.doctests.b1ae1ca8c4af1d10b7606ed5e49ad88b9e0d35e89a435893414976c4>
           >>> add_task('b')
-          <torque.client.Task thruflo.torque.default.f84ff8757572c751e8e54ca7b1351906ec6260ac944d5f0d2728c188>
+          <torque.client.Task thruflo.torque.doctests.f84ff8757572c751e8e54ca7b1351906ec6260ac944d5f0d2728c188>
           >>> clear_queue()
           2
       
@@ -409,7 +403,6 @@ def clear_queue(queue_name=None):
     return 0
     
 
-
 def create_n_tasks(n, url, params={}, queue_name=None):
     """Function designed to ease manual testing.
     """
@@ -423,4 +416,11 @@ def create_n_tasks(n, url, params={}, queue_name=None):
         i -= 1
     
     
+
+
+def setup():
+    options.queue_name = 'doctests'
+
+def teardown():
+    clear_queue()
 

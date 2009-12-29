@@ -68,16 +68,23 @@ define(
 class QueueProcessor(object):
     """Takes a range if config and processes a queue.
       
-      You can use it in two ways.  Firstly, you can process a queue
-      ad infinitum::
+      You can use it in two ways.  You can process a queue ad infinitum
+      using ``QueueProcessor().process(finish_on_empty=False)``.  Or you 
+      can process a queue until it's empty::
       
+          >>> from client import add_task, clear_queue, count_tasks
+          >>> n = clear_queue()
+          >>> url = 'http://www.friendfeed.com'
+          >>> for item in 'abcdefghijklmnopqrstuvwxyz':
+          ...     t = add_task(url, {'char': item})
+          ...
+          >>> count_tasks()
+          26
           >>> qp = QueueProcessor()
-          >>> qp.process(finish_on_empty=False)
-      
-      Or you can process a queue until it's empty::
-      
           >>> qp.process(finish_on_empty=True)
           True
+          >>> count_tasks()
+          0
       
       If you specify ``finish_on_empty=True`` then the method returns
       ``True`` if the queue was cleared successfully.  Or it will
@@ -85,7 +92,17 @@ class QueueProcessor(object):
       
       Note that a task erroring won't error the queue processing.
       Instead, the task will be rescheduled ``max_task_errors`` times,
-      backing off exponentially upto ``max_task_delay`` seconds.
+      backing off exponentially upto ``max_task_delay`` seconds::
+      
+          >>> non_existant_url = 'http://friendfeed.com/fjfsdghfdshfsfgfjsgfhjsdsd'
+          >>> t = add_task(non_existant_url) # will error when executed
+          >>> count_tasks()
+          1
+          >>> qp = QueueProcessor()
+          >>> qp.process(finish_on_empty=True)
+          True
+          >>> count_tasks()
+          0
       
       It's worth noting that if you have an erroring task, and relatively 
       high values for ``max_task_errors`` and ``max_task_delay``, it may
@@ -116,7 +133,18 @@ class QueueProcessor(object):
                                 or options.max_error_delay
         
     
-    def _dispatch(self, url, params={}):
+    
+    def _dispatch(self, url, params={}, decode=True):
+        """Internal method that dispatches a request and handles the
+          response to always return a (response, status_code) tuple
+          where the response may be None but the status code is always
+          an appropriate number.
+          
+          If ``decode`` is ``True`` and the ``status`` is in the 200s
+          then it decodes the response body from a json string into
+          a python object.
+        """
+        
         request = urllib2.Request(url, unicode_urlencode(params))
         response = None
         try:
@@ -130,8 +158,9 @@ class QueueProcessor(object):
             status = 500
         else:
             status = response.code
-            response = json_decode(response.read())
+            response = decode and json_decode(response.read()) or response.read()
         return response, status
+    
     
     def process(self, finish_on_empty=None):
         finish_on_empty = finish_on_empty and finish_on_empty or options.finish_on_empty
@@ -196,6 +225,16 @@ def main():
     # if there is one, report the result
     logging.info(success and 'processed successfully' or 'processing failed')
     
+
+
+def setup():
+    options.queue_name = 'doctests'
+    options.max_task_errors = 3
+
+
+def teardown():
+    from client import clear_queue
+    clear_queue()
 
 
 if __name__ == "__main__":
