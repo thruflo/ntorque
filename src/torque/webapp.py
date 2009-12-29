@@ -3,7 +3,7 @@
 
 """Tornado web application.
   
-  Serves:
+  Provides:
   
   * ``/add_task``
   * ``/concurrent_executer``
@@ -65,18 +65,21 @@ class AddTask(web.RequestHandler):
 
 
 class ConcurrentExecuter(web.RequestHandler):
-    """Takes a ``queue_name``, fetches ``limit`` items from
-      the queue, and posts them individually via concurrent, 
-      non-blocking requests.
+    """Takes a ``queue_name``, fetches ``limit`` items from the queue, 
+      and posts them individually via concurrent, non-blocking requests.
       
-      If the queue is empty, returns 204 to indicate there's
-      no content to process.  Unless the ``check_pending`` argument
-      has been provided and is True, at which point it checks the 
-      queue to see if any tasks are pending and if none are, returns
-      205 to indicate that the queue has been completely emptied.
+      This means that you can execute ``limit`` tasks in the time it
+      takes the longest to complete.
       
-      If an individual task errors, its ``ts`` is incremented
-      according to a backoff algorithm.
+      If the queue is empty, we return ``204`` to indicate there's no content 
+      to process.  Unless the ``check_pending`` argument has been provided 
+      and is ``True``, at which point it checks the queue to see if any tasks 
+      are pending and if none are, returns ``205`` to indicate that the queue
+      has been completely emptied.
+      
+      By returning status codes, the ``ConcurrentExecuter`` delegates
+      responsibility for deleting or rescheduling tasks.  It just executes
+      them... concurrently.
     """
     
     def get(self):
