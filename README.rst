@@ -50,7 +50,7 @@ running on port ``8889``) would be::
         'url': 'http://mywebservice.com/hooks/do/foo',
         'params': json.dumps({'foo', 'somevalue', 'baz': 99})
     }
-    target_url = 'http://localhost:8889/hooks/add'
+    target_url = 'http://localhost:8889/add_task'
     urllib.urlopen(target_url, urllib.urlencode(mytask))
 
 This queued a POST request to ``http://mywebservice.com/hooks/do/foo`` with
