@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'torque',
-    version = '0.4',
+    version = '0.4.1',
     description = 'A web hook task queue based on tornado and redis',
     long_description = open('README.rst').read(),
     author = 'James Arthur',
@@ -15,7 +15,7 @@ setup(
         'License :: Public Domain',
         'Programming Language :: Python'
     ],
-    license = open('LICENSE.rst').read(),
+    license = 'Creative Commons CC0 1.0 Universal',
     packages = find_packages('src'),
     package_dir = {'': 'src'},
     include_package_data = True,
