@@ -11,13 +11,17 @@ import hashlib
 import logging
 import time
 
+try:
+    import json
+except ImportError:
+    import simplejson as json
+
 import re
 starts_with_some_text_a_colon_and_two_fwd_slashes = re.compile(r'^[a-zA-Z]+:\/\/')
 
 from redis import Redis
 r = Redis()
 
-from tornado.escape import json_decode, json_encode
 from tornado.options import define, options
 
 define(
@@ -129,7 +133,7 @@ class Task(object):
             'url': self._normalise_url(url),
             'params': params
         }
-        self._task_string = json_encode(self._task)
+        self._task_string = json.dumps(self._task, sort_keys=True)
         self._id = hashlib.sha224(self._task_string).hexdigest()
         self._qk = _get_redis_key(queue_name)
         self._k = u'%s.%s' % (self._qk, self._id)
@@ -274,7 +278,7 @@ def get_task(task_id, queue_name=None):
         raise KeyError('Task id ``%s`` is not in queue ``%s``' % (task_id, queue_name))
     
     # decode into a python dict
-    data = json_decode(task_string)
+    data = json.loads(task_string)
     
     # return a Task using the data
     return Task(data['url'], params=data['params'], queue_name=queue_name)
