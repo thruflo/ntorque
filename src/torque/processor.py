@@ -11,6 +11,8 @@ import math
 import time
 import urllib2
 
+from threading import Thread
+
 from tornado import options as tornado_options
 from tornado.options import define, options
 from tornado.escape import json_decode, json_encode
@@ -28,7 +30,7 @@ define(
 # are we processing a queue ad infinitum, or just once until empty?
 define(
     'finish_on_empty', default=False, type=bool,
-    help='should ``QueueProcessor.process`` finish once the queue is empty?'
+    help='should ``QueueProcessor._run`` finish once the queue is empty?'
 )
 
 # config specifying how to deal with erroring tasks (these defaults 
@@ -69,7 +71,7 @@ class QueueProcessor(object):
     """Takes a range if config and processes a queue.
       
       You can use it in two ways.  You can process a queue ad infinitum
-      using ``QueueProcessor().process(finish_on_empty=False)``.  Or you 
+      using ``QueueProcessor(finish_on_empty=False).start()``.  Or you 
       can process a queue until it's empty::
       
           >>> from client import add_task, clear_queue, count_tasks
@@ -80,8 +82,8 @@ class QueueProcessor(object):
           ...
           >>> count_tasks()
           26
-          >>> qp = QueueProcessor()
-          >>> qp.process(finish_on_empty=True)
+          >>> qp = QueueProcessor(finish_on_empty=True)
+          >>> qp.start()
           True
           >>> count_tasks()
           0
@@ -98,8 +100,8 @@ class QueueProcessor(object):
           >>> t = add_task(non_existant_url) # will error when executed
           >>> count_tasks()
           1
-          >>> qp = QueueProcessor()
-          >>> qp.process(finish_on_empty=True)
+          >>> qp = QueueProcessor(finish_on_empty=True)
+          >>> qp.start()
           True
           >>> count_tasks()
           0
@@ -114,7 +116,8 @@ class QueueProcessor(object):
             self, server_address=None, queue_name=None, limit=None,
             max_task_errors=None, max_task_delay=None, min_delay=None,
             error_multiplier=None, empty_multiplier=None,
-            max_empty_delay=None, max_error_delay=None
+            max_empty_delay=None, max_error_delay=None,
+            finish_on_empty=None
         ):
         self.server_address = server_address and server_address or options.server_address
         self.queue_name = queue_name and queue_name or options.queue_name
@@ -131,6 +134,11 @@ class QueueProcessor(object):
                                 or options.max_empty_delay
         self.max_error_delay = max_error_delay and max_error_delay \
                                 or options.max_error_delay
+        if finish_on_empty is not None:
+            self.finish_on_empty = finish_on_empty
+        else:
+            self.finish_on_empty = options.finish_on_empty
+        self.running = True
         
     
     
@@ -162,17 +170,16 @@ class QueueProcessor(object):
         return response, status
     
     
-    def process(self, finish_on_empty=False):
-        finish_on_empty = finish_on_empty and finish_on_empty or options.finish_on_empty
+    def _run(self):
         backoff = self.min_delay
         url = u'%s/concurrent_executer' % self.server_address
         params = {
             'queue_name': self.queue_name, 
             'limit': self.limit,
-            'check_pending': finish_on_empty
+            'check_pending': self.finish_on_empty
         }
-        while True:
-            logging.info('.')
+        while self.running:
+            logging.debug('.')
             response, status = self._dispatch(url=url, params=params)
             # first process the tasks
             # then deal with the backoff
@@ -198,18 +205,37 @@ class QueueProcessor(object):
                     if backoff < self.min_delay:
                         backoff = self.min_delay
             elif status == 204 or status == 205:
-                if status == 205 and finish_on_empty:
+                if status == 205 and self.finish_on_empty:
                     return True
                 backoff = backoff * self.empty_multiplier
                 if backoff > self.max_empty_delay:
                     backoff = self.max_empty_delay
             else: # there was an unexpected error
-                if finish_on_empty:
+                if self.finish_on_empty:
                     return False
                 backoff = backoff * self.error_multiplier
                 if backoff > self.max_error_delay:
                     backoff = self.max_error_delay
             time.sleep(backoff)
+        
+    
+    
+    def start(self, async=False):
+        self.running = True
+        if async:
+            self.thread = Thread(target=self._run)
+            self.thread.start()
+        else:
+            return self._run()
+        
+    
+    def stop(self):
+        self.running = False
+        while True:
+            self.thread.join(2.0)
+            if not self.thread.isAlive():
+                break
+            
         
     
     
@@ -221,7 +247,7 @@ def main():
     # parse the command line options
     tornado_options.parse_command_line()
     # process the queue
-    success = QueueProcessor().process()
+    QueueProcessor().start()
     # if there is one, report the result
     logging.info(success and 'processed successfully' or 'processing failed')
     

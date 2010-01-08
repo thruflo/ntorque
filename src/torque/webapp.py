@@ -99,7 +99,10 @@ class ConcurrentExecuter(web.RequestHandler):
         len_tasks = len(tasks)
         if len_tasks == 0:
             self.set_status(204)
-            if self.get_argument('check_pending', False):
+            check_pending = self.get_argument('check_pending')
+            if not isinstance(check_pending, bool):
+                check_pending = eval(check_pending)
+            if check_pending:
                 kwargs = queue_name and {'queue_name': queue_name} or {}
                 if count_tasks(**kwargs) < 1:
                     self.set_status(205)
@@ -150,11 +153,7 @@ mapping = [(
     )
 ]
 
-def main():
-    # hack around an OSX error
-    tornado_options.enable_pretty_logging = do_nothing
-    # parse the command line options
-    tornado_options.parse_command_line()
+def serve():
     # create the web application
     application = web.Application(mapping, debug=options.debug)
     # start the http server, forking one process per cpu
@@ -163,6 +162,16 @@ def main():
     http_server.start()
     # start the async ioloop
     ioloop.IOLoop.instance().start()
+    
+
+
+def main():
+    # hack around an OSX error
+    tornado_options.enable_pretty_logging = do_nothing
+    # parse the command line options
+    tornado_options.parse_command_line()
+    # serve the webapp
+    serve()
 
 
 if __name__ == "__main__":

@@ -16,12 +16,18 @@ webhooks_.  This approach allows you to handle tasks within your normal web
 application environment by writing request handlers, just as you would to handle 
 a user initiated request.
 
-To use it, you need to run three processes:
+To use it, you need to run:
 
 #. a redis_ database
 #. ``./bin/torque-serve``, which exposes a Tornado_ application (by default on
    ``http://localhost:8889``)
 #. one ``./bin/torque-process`` per queue
+
+Or, if you're just using the default queue, you can replace ``./bin/torque-serve`` and ``./bin/torque-process`` with:
+
+#. ``./bin/torque-run``
+
+Which runs the web application and the process loop in seperate threads.
 
 You can process queues ad infinitum, or until they are empty.  See
 ``torque.process.QueueProcessor.__doc__`` for the details.

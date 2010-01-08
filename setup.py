@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'torque',
-    version = '0.4.2',
+    version = '0.4.3',
     description = 'A web hook task queue based on tornado and redis',
     long_description = open('README.rst').read(),
     author = 'James Arthur',
@@ -35,7 +35,8 @@ setup(
         ],
         'console_scripts': [
             'torque-serve = torque.webapp:main',
-            'torque-process = torque.processor:main'
+            'torque-process = torque.processor:main',
+            'torque-run = torque.run:main'
         ]
     }
 )
