@@ -1,4 +1,11 @@
 
+0.4.3
+-----
+
+* enabled processing in a thread, via the ``async=True|False`` option to ``QueueProcessor.start`` method
+* provided ``./bin/torque-run`` to run the webapp and processor in seperate threads of a single OS process
+
+
 0.4.2
 -----
 
