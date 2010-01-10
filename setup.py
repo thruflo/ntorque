@@ -22,11 +22,11 @@ setup(
     zip_safe = False,
     install_requires=[
         'setuptools_git==0.3.4',
-        'pycurl==7.18.1',
-        'simplejson==2.0.9',
+        #'pycurl<=7.18.1',
+        #'simplejson==2.0.9',
         'tornado==0.2',
         'redis==0.6.1',
-        'nose==0.11.1'
+        #'nose==0.11.1'
     ],
     test_suite = 'nose.collector',
     entry_points = {
