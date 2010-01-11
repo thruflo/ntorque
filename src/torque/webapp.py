@@ -26,6 +26,10 @@ from tornado.escape import json_decode, json_encode
 
 define('debug', default=False, help='debug mode')
 define('port', default=8889, help='port to run on')
+define(
+    'processes', default=1, 
+    help='how many processes to spawn (use 0 for one per CPU)'
+)
 
 from client import add_task, fetch_tasks, count_tasks
 from utils import do_nothing, unicode_urlencode
@@ -156,10 +160,13 @@ mapping = [(
 def serve():
     # create the web application
     application = web.Application(mapping, debug=options.debug)
-    # start the http server, forking one process per cpu
+    # start the http server
     http_server = httpserver.HTTPServer(application)
     http_server.bind(options.port)
-    http_server.start()
+    if options.processes > 0:
+        http_server.start(options.processes)
+    else: # fork one process per cpu
+        http_server.start()
     # start the async ioloop
     ioloop.IOLoop.instance().start()
     

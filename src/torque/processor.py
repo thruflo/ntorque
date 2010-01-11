@@ -166,7 +166,9 @@ class QueueProcessor(object):
             status = 500
         else:
             status = response.code
-            response = decode and json_decode(response.read()) or response.read()
+            response = response.read()
+            if decode and response:
+                response = json_decode(response)
         return response, status
     
     
