@@ -218,6 +218,7 @@ class QueueProcessor(object):
                 backoff = backoff * self.error_multiplier
                 if backoff > self.max_error_delay:
                     backoff = self.max_error_delay
+                logging.info('backing off from error for %s seconds' % backoff)
             time.sleep(backoff)
         
     

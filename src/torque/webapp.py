@@ -120,15 +120,14 @@ class ConcurrentExecuter(web.RequestHandler):
             self.status_codes = {}
             http = httpclient.AsyncHTTPClient(max_clients=len_tasks)
             for task in tasks:
-                http.fetch(
-                    task.url,
-                    method='POST',
-                    body=unicode_urlencode(task.params),
-                    callback=self.async_callback(
-                        self._handle_response,
-                        task_id = task.id
-                    )
-                )
+                callback = self.async_callback(self._handle_response, task_id=task.id)
+                kwargs = {}
+                if task.params:
+                    kwargs = {
+                        'method': 'POST',
+                        'body': unicode_urlencode(task.params)
+                    }
+                http.fetch(task.url, callback=callback, **kwargs)
                 self.task_ids.append(task.id)
             
         
