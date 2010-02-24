@@ -66,6 +66,10 @@ define(
     'error_multiplier', default=4.0, type=float,
     help='exponentially multiply the delay by when something is erroring' 
 )
+define( 
+    'request_timeout', default=20.0, type=float,
+    help='how long to keep a request open to the concurrent executer'
+)
 
 class QueueProcessor(object):
     """Takes a range if config and processes a queue.
@@ -117,7 +121,7 @@ class QueueProcessor(object):
             max_task_errors=None, max_task_delay=None, min_delay=None,
             error_multiplier=None, empty_multiplier=None,
             max_empty_delay=None, max_error_delay=None,
-            finish_on_empty=None
+            finish_on_empty=None, request_timeout=None
         ):
         self.server_address = server_address and server_address or options.server_address
         self.queue_name = queue_name and queue_name or options.queue_name
@@ -138,6 +142,8 @@ class QueueProcessor(object):
             self.finish_on_empty = finish_on_empty
         else:
             self.finish_on_empty = options.finish_on_empty
+        self.request_timeout = request_timeout and request_timeout \
+                                or options.request_timeout
         self.running = True
         
     
@@ -153,7 +159,11 @@ class QueueProcessor(object):
           a python object.
         """
         
-        request = urllib2.Request(url, unicode_urlencode(params))
+        request = urllib2.Request(
+            url, 
+            unicode_urlencode(params), 
+            timeout=self.request_timeout
+        )
         response = None
         try:
             response = urllib2.urlopen(request)

@@ -30,6 +30,10 @@ define(
     'processes', default=1, 
     help='how many processes to spawn (use 0 for one per CPU)'
 )
+define(
+    'request_timeout', default=20.0,
+    help='how long to allow tasks to be processed for before timing out'
+)
 
 from client import add_task, fetch_tasks, count_tasks
 from utils import do_nothing, unicode_urlencode
@@ -127,6 +131,8 @@ class ConcurrentExecuter(web.RequestHandler):
                         'method': 'POST',
                         'body': unicode_urlencode(task.params)
                     }
+                if options.request_timeout:
+                    kwargs['request_timeout'] = options.request_timeout
                 http.fetch(task.url, callback=callback, **kwargs)
                 self.task_ids.append(task.id)
             
