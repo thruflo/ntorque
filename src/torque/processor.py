@@ -8,6 +8,7 @@
 
 import logging
 import math
+import socket
 import time
 import urllib2
 
@@ -142,8 +143,9 @@ class QueueProcessor(object):
             self.finish_on_empty = finish_on_empty
         else:
             self.finish_on_empty = options.finish_on_empty
-        self.request_timeout = request_timeout and request_timeout \
-                                or options.request_timeout
+        request_timeout = request_timeout and request_timeout or options.request_timeout
+        if request_timeout:
+            socket.setdefaulttimeout(request_timeout)
         self.running = True
         
     
@@ -159,10 +161,7 @@ class QueueProcessor(object):
           a python object.
         """
         
-        request = urllib2.Request(
-            url, 
-            unicode_urlencode(params), 
-            timeout=self.request_timeout
+        request = urllib2.Request(url, unicode_urlencode(params)
         )
         response = None
         try:
