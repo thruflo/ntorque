@@ -15,7 +15,7 @@ import requests
 params = {'url': 'http://example.com/myhooks/send_welcome_email'}
 data = {'new_user_id': 1234}
 
-endpoint = os.environ.get('torque.URL')
+endpoint = os.environ.get('TORQUE_URL')
 response = requests.post(endpoint, data=data, params=params)
 ```
 
@@ -151,7 +151,7 @@ vagrant up
 
 XXX todo:
 
-* `torque.SHOULD_AUTHENTICATE`
+* `torque.should_authenticate`
 * `torque.enable_hsts`
 * ...
 
