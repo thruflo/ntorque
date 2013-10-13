@@ -7,7 +7,7 @@ setup(
     long_description = open('README.md').read(),
     author = 'James Arthur',
     author_email = 'username: thruflo, domain: gmail.com',
-    url = 'http://github.com/thruflo/torque',
+    url = 'http://documentup.com/thruflo/torque',
     classifiers = [
         'Environment :: Web Environment',
         'Intended Audience :: Developers',

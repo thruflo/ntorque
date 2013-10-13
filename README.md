@@ -1,7 +1,7 @@
 
 # Torque - web hook task queue
 
-Torque is a [task](http://www.celeryproject.org)
+[Torque][] is a [task](http://www.celeryproject.org)
 [queue](https://github.com/resque/resque) service that uses [web hooks][].
 You can use it from any programming language (that speaks HTTP) to queue
 up and reliably execute idempotent tasks.
@@ -24,6 +24,7 @@ no license restrictions. It is packaged for deployment as a [Chef cookbook][],
 for development [using Vagrant][] and is provided as a hosted service by
 [nTorque.com][].
 
+[Torque]: http://documentup.com/thruflo/torque
 [web hooks]: http://timothyfitz.com/2009/02/09/what-webhooks-are-and-why-you-should-care/
 [released into the public domain]: http://unlicense.org/UNLICENSE
 [Chef cookbook]: https://github.com/thruflo/torque-cookbook 
@@ -42,7 +43,7 @@ Because it uses web hooks, you can:
 1. use DNS / web server load balancing to distribute tasks
 1. bootstrap your task execution environment the way you bootstrap a web
    application -- i.e.: once at startup, potentially re-using your web
-   application's configuration and middleware stack
+   application's configuration and middleware
 
 [AMPQ]: http://www.rabbitmq.com
 [ESB]: http://en.wikipedia.org/wiki/Enterprise_service_bus
@@ -96,8 +97,7 @@ When the web hook returns with a 200 response, the task is marked as `completed`
 Completed tasks are periodically deleted after a configurable time period. When
 the web hook call fails or returns a non-200 response code (after redirects have
 been followed), the task is set to `retry` after a delay (based on the backoff
-algorithms [described above](#functionality)). These are picked up by a
-background process which polls the database for tasks to be retried.
+algorithms [described above](#functionality)).
 
 [PostgreSQL]: http://www.postgresql.org
 [Redis]: http://redis.io
@@ -202,13 +202,17 @@ are actually being performed successfully.
 
 For example, for a 30 minute timeout with [Apache][] as a proxy:
 
-    Timeout 1800
-    ProxyTimeout 1800
+```text
+Timeout 1800
+ProxyTimeout 1800
+```
 
 Or with [Nginx][]:
 
-    send_timeout 1800;
-    proxy_send_timeout 1800;
+```text
+send_timeout 1800;
+proxy_send_timeout 1800;
+```
 
 [Apache]: http://httpd.apache.org
 [Nginx]: http://nginx.org
