@@ -179,6 +179,18 @@ class Task(Base, BaseMixin):
     enctype = Column(Unicode(256), default=DEFAULT_ENCTYPE, nullable=False)
     body = Column(UnicodeText)
     
+    raise NotImplementedError(
+        """
+          
+          0. Posting tasks
+          
+          * optional `timeout` param per task
+          * store timeout in task data
+          
+          
+        """
+    )
+    
     def __json__(self, request=None):
         return {
             'id': self.id,
