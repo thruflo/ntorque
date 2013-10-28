@@ -194,7 +194,7 @@ class PatchTaskACL(object):
 
 
 class TaskManager(object):
-    """Provide methods to ``acquire``, ``schedule`` and ``complete`` a task."""
+    """Provide methods to ``acquire``, ``reschedule`` and ``complete`` a task."""
     
     def __init__(self, **kwargs):
         self.due_factory = kwargs.get('due_factory', due.DueFactory())
@@ -219,8 +219,8 @@ class TaskManager(object):
                 task_data = task.__json__(include_request_data=True)
         return task_data
     
-    def schedule(self, id_, retry_count):
-        """(Re)schedule by setting the due date -- does the same as the
+    def reschedule(self, id_, retry_count):
+        """Reschedule a task by setting the due date -- does the same as the
           default / onupdate machinery but with a timeout of 0.
         """
         
