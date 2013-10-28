@@ -44,8 +44,9 @@ class DueFactory(object):
         """
         
         # Unpack.
-        min_delay = self.settings.get('min_delay')
-        max_delay = self.settings.get('max_delay')
+        settings = self.settings
+        min_delay = settings.get('min_delay')
+        max_delay = settings.get('max_delay')
         
         # Use the ``retry_count`` to exponentially backoff from the ``min_delay``.
         backoff = self.backoff_cls(min_delay)
@@ -65,7 +66,7 @@ class StatusFactory(object):
     """Simple callable that uses a retry count to choose a task status."""
     
     def __init__(self, **kwargs):
-        self.settings = kwargs.get('defaults', DEFAULT_SETTINGS)
+        self.settings = kwargs.get('settings', DEFAULT_SETTINGS)
         self.statuses = kwargs.get('statuses', constants.TASK_STATUSES)
     
     def __call__(self, retry_count):
