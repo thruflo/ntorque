@@ -8,9 +8,6 @@ __all__ = [
     'Base',
     'Session',
     'Task',
-    'DEFAULT_CHARSET',
-    'DEFAULT_ENCTYPE',
-    'TASK_STATUSES',
 ]
 
 import logging
