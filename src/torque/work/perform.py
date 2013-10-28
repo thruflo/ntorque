@@ -61,8 +61,15 @@ class TaskPerformer(object):
         # exit gracefully, leaving the task to be retried in due course.
         if response is None or response.status_code > 200:
             current_retry_count = task_data['retry_count']
+            # Note that rescheduling *accelerates* the due date -- doing nothing
+            # here would leave the task to be retried at the same delay, plus
+            # the timeout.
+            # XXX what we could also do here are:
+            # - set a more informative status flag (even if only descriptive)
+            # - noop if the greenlet request timed out
             self.task_manager.reschedule(task_id, current_retry_count)
-        else: # Flag the task as complete.
+        else:
+            # Flag the task as complete.
             self.task_manager.complete(task_id)
     
 
