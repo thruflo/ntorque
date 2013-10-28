@@ -4,6 +4,7 @@
 
 __all__ = [
     'TestAppFactory',
+    'TestRegFactory',
 ]
 
 try:
@@ -11,8 +12,9 @@ try:
 except ImportError: #pragma: no cover
     pass
 
-from torque import model
 from torque import api
+from torque import model
+from torque.work import main as work
 
 from pyramid_redis import hooks as redis_hooks
 
@@ -68,5 +70,32 @@ class TestAppFactory(object):
             self.redis_client.flushdb()
         self.session.remove()
         
+    
+
+class TestRegFactory(TestAppFactory):
+    """Callable utility that returns a bootstrapped registry."""
+    
+    def __init__(self, **kwargs):
+        self.get_registry = kwargs.get('get_registry', work.BootstrapRegistry())
+        self.base = kwargs.get('base', model.Base)
+        self.json_method = kwargs.get('get_json', webtest.utils.json_method)
+        self.redis_factory = kwargs.get('redis_factory', redis_hooks.RedisFactory())
+        self.session = kwargs.get('session', model.Session)
+        self.test_settings = kwargs.get('test_settings', TEST_SETTINGS)
+        self.has_created = False
+    
+    def __call__(self, **kwargs):
+        """Bootstrap and return the registry."""
+        
+        # Instantiate.
+        self.settings = self.test_settings.copy()
+        self.settings.update(kwargs)
+        self.registry = self.get_registry(settings=self.settings)
+        
+        # Create the db.
+        self.create()
+        
+        # Return the registry
+        return self.registry
     
 

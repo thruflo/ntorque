@@ -14,16 +14,15 @@ logger = logging.getLogger(__name__)
 import threading
 import time
 
-from pyramid_redis import RedisFactory
+from pyramid_redis.hooks import RedisFactory
 
 from .main import BootstrapRegistry
 from .perform import TaskPerformer
 
 class ChannelConsumer(object):
-    """
-      * only takes instructions from redis
-      * handles each job in new thread
-      * provides mechanism to interrupt thread
+    """Takes instructions from one or more redis channels. Calls a handle
+      function in a new thread, passing through a flag that the handle
+      function can periodically check to exit.
     """
     
     def __init__(self, redis, channels, delay=0.001, timeout=10, **kwargs):
@@ -67,7 +66,6 @@ class ChannelConsumer(object):
         thread = self.thread_cls(target=self.handler, args=args)
         thread.start()
     
-
 
 class ConsoleScript(object):
     """Bootstrap the environment and run the consumer."""

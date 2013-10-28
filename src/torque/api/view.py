@@ -20,7 +20,7 @@ from . import tree
 # From `colander.url`.
 URL_PATTERN = r"""(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))"""
 
-VALID_ID = re.compile(r'^[0-9]+$')
+VALID_INT = re.compile(r'^[0-9]+$')
 VALID_URL = re.compile(URL_PATTERN) 
 
 @view_config(context=tree.APIRoot, permission='create', request_method='POST',
@@ -32,6 +32,7 @@ class EnqueTask(object):
         self.request = request
         self.bad_request = kwargs.get('bad_request', httpexceptions.HTTPBadRequest)
         self.create_task = kwargs.get('create_task', model.CreateTask())
+        self.valid_int = kwargs.get('valid_int', VALID_INT)
         self.valid_url = kwargs.get('valid_url', VALID_URL)
     
     def __call__(self):
@@ -46,13 +47,20 @@ class EnqueTask(object):
         has_valid_url = url and self.valid_url.match(url)
         if not has_valid_url:
             raise self.bad_request(u'You must provide a valid web hook URL.')
+        default_timeout = settings.get('torque.default_timeout')
+        raw_timeout = request.GET.get('timeout', default_timeout)
+        try:
+            timeout = int(raw_timeout)
+        except ValueError:
+            raise self.bad_request(u'You must provide a valid integer timeout.')
         
         # Store the task.
-        task = self.create_task(request.application, url, request)
+        task = self.create_task(request.application, url, timeout, request)
         
         # Notify.
         channel = settings['torque.redis_channel']
-        request.redis.rpush(channel, str(task.id))
+        instruction = '{0}:0'.format(task.id)
+        request.redis.rpush(channel, instruction)
         
         # Return a 201 response with the task url as the Location header.
         response = request.response

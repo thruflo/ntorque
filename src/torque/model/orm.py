@@ -6,10 +6,11 @@ __all__ = [
     'APIKey',
     'Application',
     'Base',
-    'DEFAULT_CHARSET',
-    'DEFAULT_ENCTYPE',
     'Session',
     'Task',
+    'DEFAULT_CHARSET',
+    'DEFAULT_ENCTYPE',
+    'TASK_STATUSES',
 ]
 
 import logging
@@ -42,15 +43,42 @@ generate_api_key = lambda: util.generate_random_digest(num_bytes=20)
 Session = orm.scoped_session(orm.sessionmaker(extension=ZopeTransactionExtension()))
 Base = declarative.declarative_base()
 
-TASK_STATUSES = [
-    u'pending', 
-    u'in_progress', 
-    u'retry', 
-    u'completed'
-]
+from .constants import DEFAULT_CHARSET
+from .constants import DEFAULT_ENCTYPE
+from .constants import TASK_STATUSES
 
-DEFAULT_CHARSET = u'utf8'
-DEFAULT_ENCTYPE = u'application/x-www-form-urlencoded'
+from .due import DueFactory
+from .due import StatusFactory
+
+def next_due(context, get_due=None):
+    """Tie the due date factory into the SQLAlchemy onupdate machinery."""
+    
+    # Compose.
+    if get_due is None:
+        get_due = DueFactory()
+    
+    # Unpack.
+    params = context.current_parameters
+    timeout = params['timeout']
+    retry_count = params['retry_count']
+    
+    # Return the next due date.
+    return get_due(timeout, retry_count)
+
+def next_status(context, get_status=None):
+    """Tie the status factory into the SQLAlchemy onupdate machinery."""
+    
+    # Compose.
+    if get_status is None:
+        get_status = StatusFactory()
+    
+    # Unpack.
+    params = context.current_parameters
+    retry_count = params['retry_count']
+    
+    # Return the next due date.
+    return get_status(retry_count)
+
 
 class BaseMixin(object):
     """Provides an int ``id`` as primary key, ``version``, ``created`` and
@@ -165,12 +193,20 @@ class Task(Base, BaseMixin):
     app = orm.relationship(Application, backref=orm.backref('tasks',
             cascade="all, delete-orphan", single_parent=True))
     
-    # Has a pre-defined status.
-    status = Column(Enum(*TASK_STATUSES, name='task_statuses'),
-            default=u'pending', index=True, nullable=False)
+    # How long to wait before assuming task execution wasn't sucessful.
+    timeout = Column(Integer, nullable=False) # in seconds
     
-    # When should the task be executed / retried?
-    due = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # Count of the number of times the task has been (re)tried.
+    retry_count = Column(Integer, default=0, nullable=False)
+    
+    # When should the task be retried? By default, this is the current time
+    # plus the timeout, plus one second.
+    due = Column(DateTime, default=next_due, onupdate=next_due, nullable=False)
+    
+    # Is it completed or not?
+    status = Column(Enum(*TASK_STATUSES.values(), name='task_statuses'),
+            default=next_status, onupdate=next_status, index=True,
+            nullable=False)
     
     # The web hook url and POST body with charset and content type. Note that
     # the data is decoded from the charset to unicode.
@@ -179,23 +215,19 @@ class Task(Base, BaseMixin):
     enctype = Column(Unicode(256), default=DEFAULT_ENCTYPE, nullable=False)
     body = Column(UnicodeText)
     
-    raise NotImplementedError(
-        """
-          
-          0. Posting tasks
-          
-          * optional `timeout` param per task
-          * store timeout in task data
-          
-          
-        """
-    )
-    
-    def __json__(self, request=None):
-        return {
+    def __json__(self, request=None, include_request_data=False):
+        data = {
+            'due': self.due.isoformat(),
             'id': self.id,
+            'retry_count': self.retry_count,
             'status': self.status,
+            'timeout': self.timeout,
             'url': self.url,
         }
+        if include_request_data:
+            data['charset'] = self.charset
+            data['enctype'] = self.enctype
+            data['body'] = self.body
+        return data
     
 

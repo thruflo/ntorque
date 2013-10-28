@@ -70,7 +70,7 @@ class GetAuthenticatedApplication(object):
     """
     
     def __init__(self, **kwargs):
-        self.get_app = kwargs.get('get_app', model.GetApplication())
+        self.get_app = kwargs.get('get_app', model.LookupApplication())
         self.get_userid = kwargs.get('get_userid', unauthenticated_userid)
     
     def __call__(self, request):

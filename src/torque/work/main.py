@@ -10,8 +10,8 @@ __all__ = [
 
 # Patch everything with gevent.
 import gevent.monkey
+gevent.monkey.patch_all()
 import gevent_psycopg2
-gevent_monkey.patch_all()
 gevent_psycopg2.monkey_patch()
 
 import logging

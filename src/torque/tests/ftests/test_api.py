@@ -36,7 +36,7 @@ class TestRootEndpoint(unittest.TestCase):
     def test_post_without_authentication(self):
         """POST should not be forbidden if told not to authenticate."""
         
-        settings = {'torque.should_authenticate': False}
+        settings = {'torque.authenticate': False}
         api = self.app_factory(**settings)
         r = api.post('/', status=400)
     
@@ -64,7 +64,7 @@ class TestRootEndpoint(unittest.TestCase):
         from torque import model
         create_app = model.CreateApplication()
         get_key = model.GetActiveKey()
-        get_task = model.GetTask()
+        get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
         api = self.app_factory()
@@ -118,10 +118,10 @@ class TestRootEndpoint(unittest.TestCase):
         """POSTing without auth should enque a task with ``app==None``."""
         
         from torque import model
-        get_task = model.GetTask()
+        get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.should_authenticate': False}
+        settings = {'torque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Invent a web hook url.
@@ -144,10 +144,10 @@ class TestRootEndpoint(unittest.TestCase):
         """
         
         from torque import model
-        get_task = model.GetTask()
+        get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.should_authenticate': False}
+        settings = {'torque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Setup a request with form encoded latin-1.
@@ -174,10 +174,10 @@ class TestRootEndpoint(unittest.TestCase):
         """Test enqueing a task with a JSON body and UTF-8 charset."""
         
         from torque import model
-        get_task = model.GetTask()
+        get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.should_authenticate': False}
+        settings = {'torque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Setup a request with form encoded latin-1.
@@ -213,7 +213,7 @@ class TestGetCreatedTaskLocation(unittest.TestCase):
         """The location returned after enquing a task should be gettable."""
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.should_authenticate': False}
+        settings = {'torque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Invent a web hook url.
@@ -235,7 +235,7 @@ class TestGetCreatedTaskLocation(unittest.TestCase):
         from torque import model
         create_app = model.CreateApplication()
         get_key = model.GetActiveKey()
-        get_task = model.GetTask()
+        get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
         api = self.app_factory()
@@ -280,10 +280,10 @@ class TestCreatedTaskNotification(unittest.TestCase):
         self.assertEquals(redis.llen(channel), 0)
     
     def test_notification(self):
-        """After creating a task, its id should be on the redis channel."""
+        """After creating a task, its `id:retry_count` should be in redis."""
         
         # Setup.
-        api = self.app_factory(**{'torque.should_authenticate': False})
+        api = self.app_factory(**{'torque.authenticate': False})
         settings = self.app_factory.settings
         channel = settings.get('torque.redis_channel')
         redis = self.app_factory.redis_client
@@ -296,16 +296,16 @@ class TestCreatedTaskNotification(unittest.TestCase):
         
         # Its id should be in the redis channel list.
         self.assertEquals(redis.llen(channel), 1)
-        task_id_str = redis.lpop(channel)
-        task_id = int(task_id_str)
+        task_id, retry_count = map(int, redis.lpop(channel).split(':'))
         self.assertTrue(task_id > 0)
-        self.assertTrue(location.endswith(task_id_str))
+        self.assertTrue(retry_count is 0)
+        self.assertTrue(location.endswith(str(task_id)))
     
     def test_notification_order(self):
         """Task notifications should be added to the tail of the channel list."""
         
         # Setup.
-        api = self.app_factory(**{'torque.should_authenticate': False})
+        api = self.app_factory(**{'torque.authenticate': False})
         settings = self.app_factory.settings
         channel = settings.get('torque.redis_channel')
         redis = self.app_factory.redis_client
@@ -320,9 +320,9 @@ class TestCreatedTaskNotification(unittest.TestCase):
         
         # Pop them in order from the head of the list -- the first task should
         # come first.
-        id1 = redis.lpop(channel)
-        id2 = redis.lpop(channel)
-        self.assertTrue(location1.endswith(id1))
-        self.assertTrue(location2.endswith(id2))
+        id1, _ = map(int, redis.lpop(channel).split(':'))
+        id2, _ = map(int, redis.lpop(channel).split(':'))
+        self.assertTrue(location1.endswith(str(id1)))
+        self.assertTrue(location2.endswith(str(id2)))
     
 

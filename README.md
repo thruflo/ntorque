@@ -151,7 +151,7 @@ vagrant up
 
 XXX todo:
 
-* `torque.should_authenticate`
+* `torque.authenticate`
 * `torque.enable_hsts`
 * ...
 

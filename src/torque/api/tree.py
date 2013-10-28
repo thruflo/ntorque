@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import re
-VALID_ID = re.compile(r'^[0-9]+$')
+VALID_INT = re.compile(r'^[0-9]+$')
 
 from torque import model
 from torque import root
@@ -34,8 +34,8 @@ class TaskRoot(root.TraversalRoot):
     
     def __init__(self, *args, **kwargs):
         super(TaskRoot, self).__init__(*args, **kwargs)
-        self.get_task = kwargs.get('get_task', model.GetTask())
-        self.valid_id = kwargs.get('valid_id', VALID_ID)
+        self.get_task = kwargs.get('get_task', model.LookupTask())
+        self.valid_id = kwargs.get('valid_id', VALID_INT)
     
     def __getitem__(self, key):
         """Lookup task by ID and, if found, make sure the task is locatable."""

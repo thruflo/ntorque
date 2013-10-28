@@ -12,6 +12,7 @@ import os
 from sqlalchemy import engine_from_config
 
 from .api import *
+from .constants import *
 from .orm import *
 
 DEFAULTS = {
@@ -44,9 +45,6 @@ class IncludeMe(object):
         # Bind session and declarative base to the db engine.
         self.session_cls.configure(bind=engine)
         self.base.metadata.bind = engine
-        
-        # Wrap everything with the transaction manager.
-        config.include('pyramid_tm')
         
         # Provide ``request.db_session``.
         get_session = lambda request: self.session_cls()

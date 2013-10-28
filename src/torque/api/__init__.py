@@ -22,9 +22,10 @@ from . import tree
 
 DEFAULTS = {
     'mode': os.environ.get('MODE', 'development'),
+    'authenticate': os.environ.get('TORQUE_AUTHENTICATE', True),
+    'default_timeout': os.environ.get('TORQUE_DEFAULT_TIMEOUT', 60),
     'enable_hsts': os.environ.get('TORQUE_ENABLE_HSTS', False),
     'redis_channel': os.environ.get('TORQUE_REDIS_CHANNEL', 'torque'),
-    'should_authenticate': os.environ.get('TORQUE_SHOULD_AUTHENTICATE', True),
 }
 
 class IncludeMe(object):
@@ -52,13 +53,16 @@ class IncludeMe(object):
         # Configure redis.
         config.include('pyramid_redis')
         
+        # Wrap everything with the transaction manager.
+        config.include('pyramid_tm')
+        
         # If configured, enforce HSTS.
         should_enable_hsts = settings.get('torque.enable_hsts')
         if asbool(should_enable_hsts):
             config.include('pyramid_hsts')
         
         # If configured, enforce authentication.
-        should_authenticate = settings.get('torque.should_authenticate')
+        should_authenticate = settings.get('torque.authenticate')
         if asbool(should_authenticate):
             config.set_authorization_policy(self.authz_policy)
             config.set_authentication_policy(self.authn_policy)

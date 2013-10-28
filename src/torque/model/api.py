@@ -6,17 +6,22 @@ __all__ = [
     'CreateApplication',
     'CreateTask',
     'GetActiveKey',
-    'GetApplication',
-    'GetTask',
+    'LookupApplication',
+    'LookupTask',
+    'TaskManager',
 ]
 
 import logging
 logger = logging.getLogger(__name__)
 
+import transaction
+
 from pyramid.security import ALL_PERMISSIONS
 from pyramid.security import Allow, Deny
 from pyramid.security import Authenticated, Everyone
 
+from . import constants
+from . import due
 from . import orm as model
 
 class CreateApplication(object):
@@ -46,7 +51,7 @@ class CreateTask(object):
         self.task_cls = kwargs.get('task_cls', model.Task)
         self.session = kwargs.get('session', model.Session)
     
-    def __call__(self, app, url, request):
+    def __call__(self, app, url, timeout, request):
         """Create and return a task belonging to the given ``app`` using the
           ``url`` and ``request`` provided.
         """
@@ -67,7 +72,7 @@ class CreateTask(object):
         
         # Create, save and return.
         task = self.task_cls(app=app, body=body, charset=charset,
-                enctype=enctype, url=url)
+                enctype=enctype, timeout=timeout, url=url)
         self.session.add(task)
         self.session.flush()
         return task
@@ -119,7 +124,7 @@ class GetActiveKeyValues(object):
     
 
     
-class GetApplication(object):
+class LookupApplication(object):
     """Lookup an application by ``api_key``."""
     
     def __init__(self, **kwargs):
@@ -147,7 +152,7 @@ class GetApplication(object):
         return query.first()
     
 
-class GetTask(object):
+class LookupTask(object):
     """Lookup a task by ``id``."""
     
     def __init__(self, **kwargs):
@@ -185,5 +190,51 @@ class PatchTaskACL(object):
         
         # Set the ACL to the rules list.
         task.__acl__ = rules
+    
+
+
+class TaskManager(object):
+    """Provide methods to ``acquire``, ``schedule`` and ``complete`` a task."""
+    
+    def __init__(self, **kwargs):
+        self.due_factory = kwargs.get('due_factory', due.DueFactory())
+        self.session = kwargs.get('session', model.Session)
+        self.statuses = kwargs.get('statuses', constants.TASK_STATUSES)
+        self.task_cls = kwargs.get('task_cls', model.Task)
+        self.tx_manager = kwargs.get('tx_manager', transaction.manager)
+    
+    def acquire(self, id_, retry_count):
+        """Get a task by ``id`` and ``retry_count``, transactionally setting the
+          status to ``in_progress`` and incrementing the ``retry_count``.
+        """
+        
+        task_data = None
+        query = self.task_cls.query
+        query = query.filter_by(id=id_, retry_count=retry_count)
+        with self.tx_manager:
+            task = query.first()
+            if task:
+                task.retry_count = retry_count + 1
+                self.session.add(task)
+                task_data = task.__json__(include_request_data=True)
+        return task_data
+    
+    def schedule(self, id_, retry_count):
+        """(Re)schedule by setting the due date -- does the same as the
+          default / onupdate machinery but with a timeout of 0.
+        """
+        
+        values_dict = {'due': self.due_factory(0, retry_count)}
+        query = self.task_cls.query.filter_by(id=id_)
+        with self.tx_manager:
+            query.update(values_dict)
+    
+    def complete(self, id_):
+        """Flag a task as completed."""
+        
+        values_dict = {'status': self.statuses['completed']}
+        query = self.task_cls.query.filter_by(id=id_)
+        with self.tx_manager:
+            query.update(values_dict)
     
 
