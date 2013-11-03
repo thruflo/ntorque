@@ -36,8 +36,9 @@ class TaskPerformer(object):
         url = task_data['url']
         body = task_data['body']
         timeout = task_data['timeout']
-        headers = {'content-type': '{0}; charset={1}'.format(
-                task_data['enctype'], task_data['charset'])}
+        headers = task_data['headers']
+        headers['content-type'] = '{0}; charset={1}'.format(
+                task_data['enctype'], task_data['charset'])
         
         # Spawn a POST to the web hook in a greenlet -- so we can monitor
         # the control flag in case we want to exit whilst waiting.

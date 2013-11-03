@@ -14,6 +14,7 @@ __all__ = [
 import logging
 logger = logging.getLogger(__name__)
 
+import json
 import transaction
 
 from pyramid.security import ALL_PERMISSIONS
@@ -46,8 +47,12 @@ class CreateTask(object):
     """Create a task."""
     
     def __init__(self, **kwargs):
-        self.default_charset = kwargs.get('default_charset', model.DEFAULT_CHARSET)
-        self.default_enctype = kwargs.get('default_enctype', model.DEFAULT_ENCTYPE)
+        self.default_charset = kwargs.get('default_charset',
+                constants.DEFAULT_CHARSET)
+        self.default_enctype = kwargs.get('default_enctype',
+                constants.DEFAULT_ENCTYPE)
+        self.proxy_header_prefix = kwargs.get('proxy_header_prefix',
+                constants.PROXY_HEADER_PREFIX)
         self.task_cls = kwargs.get('task_cls', model.Task)
         self.session = kwargs.get('session', model.Session)
     
@@ -70,9 +75,18 @@ class CreateTask(object):
         # Use it to decode the body to a unicode string.
         body = request.body.decode(charset)
         
+        # Extract any headers to pass through.
+        headers = {}
+        for key, value in request.headers.items():
+            if key.startswith(self.proxy_header_prefix):
+                k = key[len(self.proxy_header_prefix):]
+                headers[k] = value
+        headers_json = json.dumps(headers)
+        
         # Create, save and return.
         task = self.task_cls(app=app, body=body, charset=charset,
-                enctype=enctype, timeout=timeout, url=url)
+                enctype=enctype, headers=headers_json, timeout=timeout,
+                url=url)
         self.session.add(task)
         self.session.flush()
         return task

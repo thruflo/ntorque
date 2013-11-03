@@ -13,6 +13,7 @@ __all__ = [
 import logging
 logger = logging.getLogger(__name__)
 
+import json
 from datetime import datetime
 
 from zope.sqlalchemy import ZopeTransactionExtension
@@ -210,6 +211,7 @@ class Task(Base, BaseMixin):
     url = Column(Unicode(256), nullable=False)
     charset = Column(Unicode(24), default=DEFAULT_CHARSET, nullable=False)
     enctype = Column(Unicode(256), default=DEFAULT_ENCTYPE, nullable=False)
+    headers = Column(UnicodeText, default=u'{}')
     body = Column(UnicodeText)
     
     def __json__(self, request=None, include_request_data=False):
@@ -224,6 +226,7 @@ class Task(Base, BaseMixin):
         if include_request_data:
             data['charset'] = self.charset
             data['enctype'] = self.enctype
+            data['headers'] = json.loads(self.headers)
             data['body'] = self.body
         return data
     
