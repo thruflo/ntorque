@@ -1,3 +1,13 @@
+raise NotImplementedError("""
+  
+  It's much simpler to use a named `tasks` route for the api endpoints
+  than to hardcode the tasks key in the api root and to hack the faux
+  root onto the tasks model -- i.e.: just generate the urls using
+  ``request.route_path('tasks', ...)``.
+  
+  
+""")
+
 # -*- coding: utf-8 -*-
 
 """Support Pyramid traversal to ``/tasks/:task_id``."""
