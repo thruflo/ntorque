@@ -63,8 +63,8 @@ And the following features:
 * persistent task storage
 * non-blocking, concurrent task execution
 * HTTPS and redirect support
-* linear backoff to retry tasks that fail due to network errors
-* exponential backoff for tasks that respond with an HTTP error
+* configurable (linear or exponential) backoff to retry tasks that fail due
+  to network, connection or internal server errors
 
 ## Implementation
 
@@ -95,9 +95,11 @@ worker processes. These use a [PostgreSQL][] database to persist tasks and a
 
 When the web hook returns with a 200 response, the task is marked as `completed`.
 Completed tasks are periodically deleted after a configurable time period. When
-the web hook call fails or returns a non-200 response code (after redirects have
+the web hook call fails or returns a 500 response code (after redirects have
 been followed), the task is set to `retry` after a delay (based on the backoff
 algorithms [described above](#functionality)).
+
+XXX 201 < status code > 500 is set to `failed`.
 
 [PostgreSQL]: http://www.postgresql.org
 [Redis]: http://redis.io
@@ -153,7 +155,7 @@ XXX todo:
 
 * `torque.authenticate`
 * `torque.enable_hsts`
-* ...
+* `torque.backoff`: linear|exponential
 
 ## Usage / API
 
@@ -161,6 +163,7 @@ XXX todo:
 
 * `api_key` header
 * document endpoints
+* pass through headers
 
 ## Pro-Tips
 
