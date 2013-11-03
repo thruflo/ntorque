@@ -223,6 +223,28 @@ class TaskManager(object):
         self.task_cls = kwargs.get('task_cls', model.Task)
         self.tx_manager = kwargs.get('tx_manager', transaction.manager)
     
+    def _update(self, **values):
+        """Consistent logic to update the task. Note that it includes
+          the retry_count and timeout as these are used by the onupdate
+          functions and thus need to be in the sqlalchemy execution
+          context's current params.
+        """
+        
+        # Unpack.
+        retry_count = self.task_data['retry_count']
+        timeout = self.task_data['timeout']
+        
+        # Merge the values with a consistent values dict.
+        values_dict = {
+            'retry_count': retry_count,
+            'timeout': timeout,
+        }
+        values_dict.update(values)
+        query = self.task_cls.query.filter_by(id=self.task_id,
+                retry_count=retry_count)
+        with self.tx_manager:
+            query.update(values_dict)
+    
     def acquire(self, id_, retry_count):
         """Get a task by ``id`` and ``retry_count``, transactionally setting the
           status to ``in_progress`` and incrementing the ``retry_count``.
@@ -240,43 +262,27 @@ class TaskManager(object):
                 self.task_data = task.__json__(include_request_data=True)
         return self.task_data
     
-    def set_status(self, status, **values):
-        """Consistent logic to update the task status. Note that it includes
-          the """
-        
-        # Unpack.
-        retry_count = self.task_data['retry_count']
-        timeout = self.task_data['timeout']
-        
-        # Merge the values with a consistent values dict.
-        values_dict = {
-            'retry_count': retry_count,
-            'status': status,
-            'timeout': timeout,
-        }
-        values_dict.update(values)
-        query = self.task_cls.query.filter_by(id=self.task_id)
-        with self.tx_manager:
-            query.update(values_dict)
-        return status
-    
     def reschedule(self):
         """Reschedule a task by setting the due date -- does the same as the
           default / onupdate machinery but with a timeout of 0.
         """
         
-        status = self.statuses['pending']
         retry_count = self.task_data['retry_count']
-        return self.set_status(status, due=self.due_factory(0, retry_count))
+        self._update(due=self.due_factory(0, retry_count))
+        return self.statuses['pending']
     
     def complete(self):
         """Flag a task as completed."""
         
-        return self.set_status(self.statuses['completed'])
+        status = self.statuses['completed']
+        self._update(status=status)
+        return status
     
     def fail(self):
         """Flag a task as failed."""
         
-        return self.set_status(self.statuses['failed'])
+        status = self.statuses['failed']
+        self._update(status=status)
+        return status
     
 
