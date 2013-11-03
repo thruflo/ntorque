@@ -22,7 +22,7 @@ class TaskPerformer(object):
         self.task_manager = kwargs.get('acquire_task', model.TaskManager())
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
         self.post = kwargs.get('post', requests.post)
-        self.sleep = kwargs.get('spawn', gevent.sleep)
+        self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
     
     def __call__(self, instruction, control_flag):
@@ -51,8 +51,8 @@ class TaskPerformer(object):
         # increasingly less frequently.
         response = None
         delay = 0.1 # secs
-        max_delay = 5 # secs
-        backoff = self.backoff_cls(start_delay, max_value=max_delay)
+        max_delay = 2 # secs
+        backoff = self.backoff_cls(delay, max_value=max_delay)
         while control_flag.is_set():
             self.sleep(delay)
             if greenlet.ready():
