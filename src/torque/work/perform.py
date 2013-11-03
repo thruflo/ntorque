@@ -26,9 +26,12 @@ class TaskPerformer(object):
         self.spawn = kwargs.get('spawn', gevent.spawn)
     
     def __call__(self, instruction, control_flag):
-        """Parse the instruction to transactionally get-and-incr the task."""
+        """Acquire a task, perform it and update its status accordingly."""
         
-        # Parse the instruction to transactionally get-and-incr the task.
+        # Parse the instruction to transactionally
+        # get-the-task-and-incr-its-retry-count. This ensures that even if the
+        # next instruction off the queue is for the same task, or if a parallel
+        # worker has the same instruction, the task will only be acquired once.
         task_id, retry_count = map(int, instruction.split(':'))
         task_data = self.task_manager.acquire(task_id, retry_count)
         if not task_data:
@@ -48,24 +51,27 @@ class TaskPerformer(object):
         greenlet = self.spawn(self.post, url, **kwargs)
         
         # Wait for the request to complete, checking the greenlet's progress
-        # increasingly less frequently.
+        # with an expoential backoff.
         response = None
         delay = 0.1 # secs
-        max_delay = 2 # secs
+        max_delay = 2 # secs - XXX really this should be the configurable
+                      # min delay in the due logic's `timeout + min delay`.
+                      # The issue being that we could end up checking the
+                      # ready max delay after the timout, which means that
+                      # the task is likely to be re-queued already.
         backoff = self.backoff_cls(delay, max_value=max_delay)
         while control_flag.is_set():
             self.sleep(delay)
             if greenlet.ready():
                 response = greenlet.value
                 break
-            delay = backoff.exponential(1.5) # 0.15, 0.225, 0.3375, 0.50625 ... 5
+            delay = backoff.exponential(1.5) # 0.15, 0.225, 0.3375, ... 2
         
         # If we didn't get a response, or if the response was not successful,
-        # exit gracefully, leaving the task to be retried in due course.
+        # reschedule it. Note that rescheduling *accelerates* the due date --
+        # doing nothing here would leave the task to be retried anyway, as its
+        # due date was set when the task was aquired.
         if response is None or response.status_code > 499:
-            # Note that rescheduling *accelerates* the due date -- doing nothing
-            # here would leave the task to be retried at the same delay, plus
-            # the timeout.
             # XXX what we could also do here are:
             # - set a more informative status flag (even if only descriptive)
             # - noop if the greenlet request timed out

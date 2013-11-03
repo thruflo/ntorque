@@ -21,7 +21,7 @@ from . import constants
 
 DEFAULT_SETTINGS = {
     'backoff': os.environ.get('TORQUE_BACKOFF', u'exponential'),
-    'min_delay': os.environ.get('TORQUE_MIN_DUE_DELAY', 1),
+    'min_delay': os.environ.get('TORQUE_MIN_DUE_DELAY', 2),
     'max_delay': os.environ.get('TORQUE_MAX_DUE_DELAY', 7200),
     'max_retries': os.environ.get('TORQUE_MAX_RETRIES', 36),
 }
@@ -39,9 +39,9 @@ class DueFactory(object):
         self.settings = kwargs.get('settings', DEFAULT_SETTINGS)
     
     def __call__(self, timeout, retry_count):
-        """Return a datetime instance ``timeout + 1`` seconds in the future,
-          plus, if there's a retry count, generate additional seconds into
-          the future using an exponential backoff algorithm.
+        """Return a datetime instance ``timeout + min_delay`` seconds in the
+          future, plus, if there's a retry count, generate additional seconds
+          into the future using an exponential backoff algorithm.
         """
         
         # Unpack.
