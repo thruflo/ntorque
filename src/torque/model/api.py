@@ -208,7 +208,13 @@ class PatchTaskACL(object):
 
 
 class TaskManager(object):
-    """Provide methods to ``acquire``, ``reschedule`` and ``complete`` a task."""
+    """Provide methods to ``acquire`` a task and then ``reschedule``,
+      ``complete`` or ``fail`` it.
+      
+      Encapsulates the ``task_data`` returned from ``__json__()``ing the
+      instance returned from the ``acquire`` query and uses this data to
+      update the right task with the right values when setting the status.
+    """
     
     def __init__(self, **kwargs):
         self.due_factory = kwargs.get('due_factory', due.DueFactory())
@@ -222,7 +228,8 @@ class TaskManager(object):
           status to ``in_progress`` and incrementing the ``retry_count``.
         """
         
-        task_data = None
+        self.task_id = id_
+        self.task_data = None
         query = self.task_cls.query
         query = query.filter_by(id=id_, retry_count=retry_count)
         with self.tx_manager:
@@ -230,25 +237,46 @@ class TaskManager(object):
             if task:
                 task.retry_count = retry_count + 1
                 self.session.add(task)
-                task_data = task.__json__(include_request_data=True)
-        return task_data
+                self.task_data = task.__json__(include_request_data=True)
+        return self.task_data
     
-    def reschedule(self, id_, retry_count):
+    def set_status(self, status, **values):
+        """Consistent logic to update the task status. Note that it includes
+          the """
+        
+        # Unpack.
+        retry_count = self.task_data['retry_count']
+        timeout = self.task_data['timeout']
+        
+        # Merge the values with a consistent values dict.
+        values_dict = {
+            'retry_count': retry_count,
+            'status': status,
+            'timeout': timeout,
+        }
+        values_dict.update(values)
+        query = self.task_cls.query.filter_by(id=self.task_id)
+        with self.tx_manager:
+            query.update(values_dict)
+        return status
+    
+    def reschedule(self):
         """Reschedule a task by setting the due date -- does the same as the
           default / onupdate machinery but with a timeout of 0.
         """
         
-        values_dict = {'due': self.due_factory(0, retry_count)}
-        query = self.task_cls.query.filter_by(id=id_)
-        with self.tx_manager:
-            query.update(values_dict)
+        status = self.statuses['pending']
+        retry_count = self.task_data['retry_count']
+        return self.set_status(status, due=self.due_factory(0, retry_count))
     
-    def complete(self, id_):
+    def complete(self):
         """Flag a task as completed."""
         
-        values_dict = {'status': self.statuses['completed']}
-        query = self.task_cls.query.filter_by(id=id_)
-        with self.tx_manager:
-            query.update(values_dict)
+        return self.set_status(self.statuses['completed'])
+    
+    def fail(self):
+        """Flag a task as failed."""
+        
+        return self.set_status(self.statuses['failed'])
     
 

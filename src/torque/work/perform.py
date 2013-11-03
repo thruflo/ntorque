@@ -31,6 +31,8 @@ class TaskPerformer(object):
         # Parse the instruction to transactionally get-and-incr the task.
         task_id, retry_count = map(int, instruction.split(':'))
         task_data = self.task_manager.acquire(task_id, retry_count)
+        if not task_data:
+            return
         
         # Unpack the task data.
         url = task_data['url']
@@ -60,18 +62,19 @@ class TaskPerformer(object):
         
         # If we didn't get a response, or if the response was not successful,
         # exit gracefully, leaving the task to be retried in due course.
-        if response is None or response.status_code > 200:
-            current_retry_count = task_data['retry_count']
+        if response is None or response.status_code > 499:
             # Note that rescheduling *accelerates* the due date -- doing nothing
             # here would leave the task to be retried at the same delay, plus
             # the timeout.
             # XXX what we could also do here are:
             # - set a more informative status flag (even if only descriptive)
             # - noop if the greenlet request timed out
-            self.task_manager.reschedule(task_id, current_retry_count)
+            status = self.task_manager.reschedule()
+        elif response.status_code > 201:
+            status = self.task_manager.fail()
         else:
-            # Flag the task as complete.
-            self.task_manager.complete(task_id)
+            status = self.task_manager.complete()
+        return status
     
 
 

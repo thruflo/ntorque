@@ -70,14 +70,11 @@ class StatusFactory(object):
         self.statuses = kwargs.get('statuses', constants.TASK_STATUSES)
     
     def __call__(self, retry_count):
-        """Return a datetime instance ``timeout + 1`` seconds in the future,
-          plus, if there's a retry count, generate additional seconds into
-          the future using an exponential backoff algorithm.
-        """
+        """Return pending if within the retry limit, else failed."""
         
         key = 'pending'
         if retry_count > self.settings.get('max_retries'):
-            key = 'completed'
+            key = 'failed'
         return self.statuses[key]
     
 

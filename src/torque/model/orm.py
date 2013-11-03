@@ -57,8 +57,8 @@ def next_due(context, get_due=None):
     
     # Unpack.
     params = context.current_parameters
-    timeout = params['timeout']
-    retry_count = params['retry_count']
+    retry_count = params.get('retry_count')
+    timeout = params.get('timeout')
     
     # Return the next due date.
     return get_due(timeout, retry_count)
@@ -72,7 +72,7 @@ def next_status(context, get_status=None):
     
     # Unpack.
     params = context.current_parameters
-    retry_count = params['retry_count']
+    retry_count = params.get('retry_count')
     
     # Return the next due date.
     return get_status(retry_count)
@@ -191,11 +191,11 @@ class Task(Base, BaseMixin):
     app = orm.relationship(Application, backref=orm.backref('tasks',
             cascade="all, delete-orphan", single_parent=True))
     
-    # How long to wait before assuming task execution wasn't sucessful.
-    timeout = Column(Integer, nullable=False) # in seconds
-    
     # Count of the number of times the task has been (re)tried.
     retry_count = Column(Integer, default=0, nullable=False)
+    
+    # How long to wait before assuming task execution wasn't sucessful.
+    timeout = Column(Integer, default=20, nullable=False) # in seconds
     
     # When should the task be retried? By default, this is the current time
     # plus the timeout, plus one second.

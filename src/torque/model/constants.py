@@ -14,6 +14,7 @@ DEFAULT_ENCTYPE = u'application/x-www-form-urlencoded'
 PROXY_HEADER_PREFIX = u'Torque-Passthrough-'
 
 TASK_STATUSES = {
-    'pending': u'pending', 
-    'completed': u'completed',
+    'completed': u'COMPLETED',
+    'failed': u'FAILED',
+    'pending': u'PENDING', 
 }
