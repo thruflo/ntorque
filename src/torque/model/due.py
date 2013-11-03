@@ -20,6 +20,7 @@ from torque import backoff
 from . import constants
 
 DEFAULT_SETTINGS = {
+    'backoff': os.environ.get('TORQUE_BACKOFF', u'exponential'),
     'min_delay': os.environ.get('TORQUE_MIN_DUE_DELAY', 1),
     'max_delay': os.environ.get('TORQUE_MAX_DUE_DELAY', 7200),
     'max_retries': os.environ.get('TORQUE_MAX_RETRIES', 36),
@@ -45,13 +46,19 @@ class DueFactory(object):
         
         # Unpack.
         settings = self.settings
+        algorithm = settings.get('backoff')
         min_delay = settings.get('min_delay')
         max_delay = settings.get('max_delay')
         
+        # Coerce.
+        if not timeout:
+            timeout = 0
+        
         # Use the ``retry_count`` to exponentially backoff from the ``min_delay``.
         backoff = self.backoff_cls(min_delay)
+        backoff_method = getattr(backoff, algorithm)
         for i in range(retry_count):
-            backoff.exponential(2) # 1, 2, 4, 8, 16, 32, 64, 128 seconds ...
+            backoff_method()
         
         # Add the timeout and limit at the ``max_delay``.
         delay = backoff.value + timeout
