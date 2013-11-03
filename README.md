@@ -101,6 +101,16 @@ algorithms [described above](#functionality)).
 
 XXX 201 < status code > 500 is set to `failed`.
 
+XXX communicate the core truth-in-the-db, transactional acquire, will-be-retried
+logic -- and its tradeoff / side effect relationship with the timeout config value
+i.e.: the real nature of torque is that it's a) transactionally rock solid b) at
+the cost of potentially only retrying a task after its maximum request timeout --
+so if you set a high timeout, in edge case scenarios (when redis or the worker
+process fall over) you will wait until after the timeout before retrying (which
+is pretty OK, given that its very edge case and is basically the same behaviour
+as a request timeout, i.e.: you should never expect to retry a task whilst its
+pending).
+
 [PostgreSQL]: http://www.postgresql.org
 [Redis]: http://redis.io
 [Gevent]: http://www.gevent.org
