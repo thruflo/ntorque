@@ -99,7 +99,7 @@ the web hook call fails or returns a 500 response code (after redirects have
 been followed), the task is set to `retry` after a delay (based on the backoff
 algorithms [described above](#functionality)).
 
-XXX 201 < status code > 500 is set to `failed`.
+XXX 201 > status code < 500 is set to `failed`.
 
 XXX communicate the core truth-in-the-db, transactional acquire, will-be-retried
 logic -- and its tradeoff / side effect relationship with the timeout config value
@@ -110,6 +110,14 @@ process fall over) you will wait until after the timeout before retrying (which
 is pretty OK, given that its very edge case and is basically the same behaviour
 as a request timeout, i.e.: you should never expect to retry a task whilst its
 pending).
+
+XXX perhaps this is best expressed as progressive enhancement: at core, tasks
+are saved to db and db is polled, with a minimum of the request timeout delay
+to retry. If we can, we retry sooner than than the timeout and for successful
+tasks, we use redis as an optimisation to skip the initial polling. So for
+successful tasks in normal operation, we get real time push to worker process
+via redis but in failure scenarios (with redis, worker falling over and task
+execution) we retain the virtues of the old fashioned hard disk.
 
 [PostgreSQL]: http://www.postgresql.org
 [Redis]: http://redis.io
