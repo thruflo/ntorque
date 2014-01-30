@@ -14,11 +14,12 @@ gevent.monkey.patch_all()
 import gevent_psycopg2
 gevent_psycopg2.monkey_patch()
 
+# Enable logging to stderr
 import logging
+logging.basicConfig()
+
 import os
-
 from pyramid.config import Configurator
-
 from torque import model
 
 DEFAULTS = {
