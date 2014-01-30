@@ -26,15 +26,15 @@ class ChannelConsumer(object):
     """
     
     def __init__(self, redis, channels, delay=0.001, timeout=10, **kwargs):
-        self.redis = redis_client
+        self.redis = redis
         self.channels = channels
         self.connect_delay = delay
         self.timeout = timeout
-        self.handler = kw.get('handler', TaskPerformer())
-        self.logger = kw.get('logger', logger)
-        self.sleep = kw.get('sleep', time.sleep)
-        self.thread_cls = kw.get('thread_cls', threading.Thread)
-        self.flag_cls = kw.get('flag_cls', threading.Event)
+        self.handler = kwargs.get('handler', TaskPerformer())
+        self.logger = kwargs.get('logger', logger)
+        self.sleep = kwargs.get('sleep', time.sleep)
+        self.thread_cls = kwargs.get('thread_cls', threading.Thread)
+        self.flag_cls = kwargs.get('flag_cls', threading.Event)
     
     def start(self):
         self.control_flag = self.flag_cls()
@@ -57,7 +57,7 @@ class ChannelConsumer(object):
                 if return_value is not None:
                     channel, data = return_value
                     self.spawn(data)
-                    self.sleep(self.reconnect_delay)
+                    self.sleep(self.connect_delay)
     
     def spawn(self, data):
         """Handle the ``data`` in a new thread."""
@@ -72,7 +72,7 @@ class ConsoleScript(object):
     
     def __init__(self, **kwargs):
         self.consumer_cls = kwargs.get('consumer_cls', ChannelConsumer)
-        self.get_redis = kwargs.get('get_registry', RedisFactory())
+        self.get_redis = kwargs.get('get_redis', RedisFactory())
         self.get_registry = kwargs.get('get_registry', BootstrapRegistry())
     
     def __call__(self):
@@ -90,7 +90,10 @@ class ConsoleScript(object):
         
         # Instantiate and start the consumer.
         consumer = self.consumer_cls(redis_client, input_channels)
-        consumer.start()
+        try:
+            consumer.start()
+        except KeyboardInterrupt:
+            pass
     
 
 main = ConsoleScript()

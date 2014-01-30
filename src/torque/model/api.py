@@ -6,6 +6,7 @@ __all__ = [
     'CreateApplication',
     'CreateTask',
     'GetActiveKey',
+    'GetDueTasks',
     'LookupApplication',
     'LookupTask',
     'TaskManager',
@@ -16,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 import json
 import transaction
+
+from datetime import datetime
 
 from pyramid.security import ALL_PERMISSIONS
 from pyramid.security import Allow, Deny
@@ -137,7 +140,34 @@ class GetActiveKeyValues(object):
         return [item[0] for item in query]
     
 
+
+class GetDueTasks(object):
+    """Get tasks that are due and pending."""
     
+    def __init__(self, **kwargs):
+        self.utcnow = kwargs.get('utcnow', datetime.utcnow)
+        self.statuses = kwargs.get('statuses', constants.TASK_STATUSES)
+        self.task_cls = kwargs.get('task_cls', model.Task)
+    
+    def __call__(self, limit=99, offset=0):
+        """Get the tasks."""
+        
+        # Unpack.
+        model_cls = self.task_cls
+        now = self.utcnow()
+        status = self.statuses['pending']
+        
+        # Build the query.
+        query = model_cls.query.filter(model_cls.status==status)
+        query = query.filter(model_cls.due<self.utcnow())
+        
+        # Batch.
+        query = query.offset(offset).limit(limit)
+        
+        # Return the results.
+        return query.all()
+    
+
 class LookupApplication(object):
     """Lookup an application by ``api_key``."""
     

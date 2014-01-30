@@ -1,1 +1,1 @@
-web:    gunicorn -c gunicorn.py torque.api:main
+web:    foreman start --procfile=Processes
