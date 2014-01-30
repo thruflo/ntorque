@@ -3,9 +3,10 @@
 """Gunicorn configuration."""
 
 import logging
+import sys
+
 import os
 import signal
-import sys
 
 from pyramid.settings import asbool
 
