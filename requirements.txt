@@ -18,7 +18,10 @@ zope.sqlalchemy==0.7.3
 alembic==0.6
 
 # Redis client
-redis==2.8.0
+redis==2.9.1
+
+# Monitoring
+newrelic==2.10.1.9
 
 # Testing
 coverage==3.6
