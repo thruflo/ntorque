@@ -21,11 +21,12 @@ class TestRootEndpoint(unittest.TestCase):
     def tearDown(self):
         self.app_factory.drop()
     
-    def test_unsupported_method(self):
-        """GET is not a supported method."""
+    def test_get(self):
+        """GET returns an installation message."""
         
         api = self.app_factory()
-        r = api.get('/', status=405)
+        r = api.get('/', status=200)
+        self.assertTrue(u'installed' in r.body)
     
     def test_post(self):
         """Unauthenticated POST should be forbidden by default."""
