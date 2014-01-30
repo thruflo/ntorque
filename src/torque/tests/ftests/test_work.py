@@ -16,11 +16,11 @@ class TestChannelConsumer(unittest.TestCase):
     """Test consuming instructions from the redis channel."""
     
     def setUp(self):
-        self.reg_factory = boilerplate.TestRegFactory()
-        self.registry = self.reg_factory()
+        self.config_factory = boilerplate.TestConfigFactory()
+        self.registry = self.config_factory().registry
     
     def tearDown(self):
-        self.reg_factory.drop()
+        self.config_factory.drop()
     
     #def test_foo(self):
     #    """XXX"""
@@ -32,11 +32,11 @@ class TestTaskPerformer(unittest.TestCase):
     """Test performing tasks."""
     
     def setUp(self):
-        self.reg_factory = boilerplate.TestRegFactory()
-        self.registry = self.reg_factory()
+        self.config_factory = boilerplate.TestConfigFactory()
+        self.registry = self.config_factory().registry
     
     def tearDown(self):
-        self.reg_factory.drop()
+        self.config_factory.drop()
     
     def test_performing_task_miss(self):
         """Performing a task that doesn't exist returns None."""

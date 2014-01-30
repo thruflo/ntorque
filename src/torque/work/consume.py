@@ -16,7 +16,7 @@ import time
 
 from pyramid_redis.hooks import RedisFactory
 
-from .main import BootstrapRegistry
+from .main import Bootstrap
 from .perform import TaskPerformer
 
 class ChannelConsumer(object):
@@ -73,7 +73,7 @@ class ConsoleScript(object):
     def __init__(self, **kwargs):
         self.consumer_cls = kwargs.get('consumer_cls', ChannelConsumer)
         self.get_redis = kwargs.get('get_redis', RedisFactory())
-        self.get_registry = kwargs.get('get_registry', BootstrapRegistry())
+        self.get_config = kwargs.get('get_config', Bootstrap())
     
     def __call__(self):
         """Get the configured registry. Unpack the redis client and input
@@ -81,11 +81,11 @@ class ConsoleScript(object):
         """
         
         # Get the configured registry.
-        registry = self.get_registry()
+        config = self.get_config()
         
         # Unpack the redis client and input channels.
-        settings = registry.settings
-        redis_client = self.get_redis(settings, registry=registry)
+        settings = config.get_settings()
+        redis_client = self.get_redis(settings, registry=config.registry)
         input_channels = settings.get('torque.redis_channel').strip().split()
         
         # Instantiate and start the consumer.

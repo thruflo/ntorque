@@ -4,7 +4,7 @@
 
 __all__ = [
     'TestAppFactory',
-    'TestRegFactory',
+    'TestConfigFactory',
 ]
 
 try:
@@ -72,11 +72,11 @@ class TestAppFactory(object):
         
     
 
-class TestRegFactory(TestAppFactory):
-    """Callable utility that returns a bootstrapped registry."""
+class TestConfigFactory(TestAppFactory):
+    """Callable utility that returns a bootstrapped configurator."""
     
     def __init__(self, **kwargs):
-        self.get_registry = kwargs.get('get_registry', work.BootstrapRegistry())
+        self.get_config = kwargs.get('get_config', work.Bootstrap())
         self.base = kwargs.get('base', model.Base)
         self.json_method = kwargs.get('get_json', webtest.utils.json_method)
         self.redis_factory = kwargs.get('redis_factory', redis_hooks.RedisFactory())
@@ -90,12 +90,12 @@ class TestRegFactory(TestAppFactory):
         # Instantiate.
         self.settings = self.test_settings.copy()
         self.settings.update(kwargs)
-        self.registry = self.get_registry(settings=self.settings)
+        self.config = self.get_config(settings=self.settings)
         
         # Create the db.
         self.create()
         
         # Return the registry
-        return self.registry
+        return self.config
     
 

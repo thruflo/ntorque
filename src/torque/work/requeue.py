@@ -15,7 +15,7 @@ import time
 
 from pyramid_redis.hooks import RedisFactory
 from torque import model
-from .main import BootstrapRegistry
+from .main import Bootstrap
 
 class RequeuePoller(object):
     """Takes instructions from one or more redis channels. Calls a handle
@@ -67,7 +67,7 @@ class ConsoleScript(object):
     def __init__(self, **kwargs):
         self.requeue_cls = kwargs.get('requeue_cls', RequeuePoller)
         self.get_redis = kwargs.get('get_redis', RedisFactory())
-        self.get_registry = kwargs.get('get_registry', BootstrapRegistry())
+        self.get_config = kwargs.get('get_config', Bootstrap())
     
     def __call__(self):
         """Get the configured registry. Unpack the redis client and input
@@ -75,11 +75,11 @@ class ConsoleScript(object):
         """
         
         # Get the configured registry.
-        registry = self.get_registry()
+        config = self.get_config()
         
         # Unpack the redis client and input channels.
-        settings = registry.settings
-        redis_client = self.get_redis(settings, registry=registry)
+        settings = config.registry.settings
+        redis_client = self.get_redis(settings, registry=config.registry)
         channel = settings.get('torque.redis_channel')
         
         # Instantiate and start the consumer.

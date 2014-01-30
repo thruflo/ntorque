@@ -27,7 +27,7 @@ DEFAULTS = {
     'redis_channel': os.environ.get('TORQUE_REDIS_CHANNEL', 'torque'),
 }
 
-class BootstrapRegistry(object):
+class Bootstrap(object):
     """Bootstrap Pyramid dependencies and return the configured registry."""
     
     def __init__(self, **kwargs):
@@ -56,6 +56,6 @@ class BootstrapRegistry(object):
         
         # Return the registry (the only part of the "environment" we're
         # interested in).
-        return config.registry
+        return config
     
 
