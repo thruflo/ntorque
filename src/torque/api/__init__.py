@@ -21,10 +21,11 @@ from . import auth
 from . import tree
 
 DEFAULTS = {
-    'mode': os.environ.get('MODE', 'development'),
     'authenticate': os.environ.get('TORQUE_AUTHENTICATE', True),
     'default_timeout': os.environ.get('TORQUE_DEFAULT_TIMEOUT', 60),
     'enable_hsts': os.environ.get('TORQUE_ENABLE_HSTS', False),
+    'hsts.protocol_header': os.environ.get('HSTS_PROTOCOL_HEADER', None),
+    'mode': os.environ.get('MODE', 'development'),
     'redis_channel': os.environ.get('TORQUE_REDIS_CHANNEL', 'torque'),
 }
 
