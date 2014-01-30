@@ -1,0 +1,3 @@
+web:      ./run.sh
+consume:  torque_consume
+requeue:  torque_requeue
