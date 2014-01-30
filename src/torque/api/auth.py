@@ -76,7 +76,6 @@ class GetAuthenticatedApplication(object):
     def __call__(self, request):
         api_key = self.get_userid(request)
         if api_key:
-            logger.warn(dict(key=api_key))
             return self.get_app(api_key)
     
 

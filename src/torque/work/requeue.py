@@ -57,7 +57,7 @@ class RequeuePoller(object):
     def enqueue(self, task):
         """Push an instruction to re-try the task on the redis channel."""
         
-        instruction = '{0}:{0}'.format(task.id, task.retry_count)
+        instruction = '{0}:{1}'.format(task.id, task.retry_count)
         self.redis.rpush(self.channel, instruction)
     
 
