@@ -28,7 +28,7 @@ class TaskPerformer(object):
     def __call__(self, instruction, control_flag):
         """Acquire a task, perform it and update its status accordingly."""
         
-        logger.warn(instruction, control_flag)
+        logger.warn((instruction, control_flag))
         
         # Parse the instruction to transactionally
         # get-the-task-and-incr-its-retry-count. This ensures that even if the
