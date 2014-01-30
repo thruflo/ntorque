@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 import re
 
 from pyramid import httpexceptions
+from pyramid.security import NO_PERMISSION_REQUIRED
 from pyramid.view import view_config
 
 from torque import model
@@ -22,6 +23,14 @@ URL_PATTERN = r"""(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0
 
 VALID_INT = re.compile(r'^[0-9]+$')
 VALID_URL = re.compile(URL_PATTERN) 
+
+@view_config(context=tree.APIRoot, permission=NO_PERMISSION_REQUIRED,
+        request_method='GET', renderer='string')
+def installed_view(object):
+    """``POST /`` endpoint."""
+    
+    return u'Torque installed and reporting for duty, sir!'
+
 
 @view_config(context=tree.APIRoot, permission='create', request_method='POST',
         renderer='string')
