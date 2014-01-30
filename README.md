@@ -171,7 +171,7 @@ XXX todo:
 
 XXX todo:
 
-* `api_key` header
+* `TORQUE_API_KEY` header
 * document endpoints
 * pass through headers
 

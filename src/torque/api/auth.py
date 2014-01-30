@@ -27,15 +27,15 @@ VALID_API_KEY = re.compile(r'^\w{40}$')
 @implementer(IAuthenticationPolicy)
 class AuthenticationPolicy(CallbackAuthenticationPolicy):
     """A Pyramid authentication policy which obtains credential data from the
-      ``request.headers['api_key']``.
+      ``request.headers['TORQUE_API_KEY']``.
     """
     
-    def __init__(self, header_key='api_key', **kwargs):
+    def __init__(self, header_key='TORQUE_API_KEY', **kwargs):
         self.header_key = header_key
         self.valid_key = kwargs.get('valid_key', VALID_API_KEY)
     
     def unauthenticated_userid(self, request):
-        """The ``api_key`` value found within the ``request.matchdict``."""
+        """The ``api_key`` value found within the ``request.headers``."""
         
         api_key = request.headers.get(self.header_key, None)
         if api_key and self.valid_key.match(api_key):

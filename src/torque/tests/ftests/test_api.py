@@ -57,7 +57,7 @@ class TestRootEndpoint(unittest.TestCase):
             api_key = get_key(app).value.encode('utf-8')
         
         # Now the request should make it through auth to fail on validation.
-        r = api.post('/', headers={'api_key': api_key}, status=400)
+        r = api.post('/', headers={'TORQUE_API_KEY': api_key}, status=400)
     
     def test_post_task(self):
         """POSTing a valid url should enque a task."""
@@ -74,7 +74,7 @@ class TestRootEndpoint(unittest.TestCase):
         with transaction.manager:
             app = create_app(u'example')
             api_key = get_key(app).value.encode('utf-8')
-        headers={'api_key': api_key}
+        headers={'TORQUE_API_KEY': api_key}
         
         # Invent a web hook url.
         url = u'http://example.com/hook'
@@ -106,7 +106,7 @@ class TestRootEndpoint(unittest.TestCase):
         with transaction.manager:
             app = create_app(u'example')
             api_key = get_key(app).value.encode('utf-8')
-        headers={'api_key': api_key}
+        headers={'TORQUE_API_KEY': api_key}
         
         # Invent an invalid web hook url.
         url = u'not a url'
@@ -245,7 +245,7 @@ class TestGetCreatedTaskLocation(unittest.TestCase):
         with transaction.manager:
             app = create_app(u'example')
             api_key = get_key(app).value.encode('utf-8')
-        headers={'api_key': api_key}
+        headers={'TORQUE_API_KEY': api_key}
         
         # Invent a web hook url.
         url = u'http://example.com/hook'
