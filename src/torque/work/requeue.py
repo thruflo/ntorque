@@ -24,9 +24,6 @@ class RequeuePoller(object):
     """Takes instructions from one or more redis channels. Calls a handle
       function in a new thread, passing through a flag that the handle
       function can periodically check to exit.
-      
-      if due > self.datetime.utcnow() and status == self.statuses['pending']
-      
     """
     
     def __init__(self, redis, channel, interval=20, **kwargs):
