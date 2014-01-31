@@ -3,7 +3,8 @@
 
 [Torque][] is a [task](http://www.celeryproject.org)
 [queue](https://github.com/resque/resque) service that uses [web hooks][].
-You can use it from any programming language (that speaks HTTP) to queue
+It is free, open source software [released into the public domain][] that
+you can use from any programming language (that speaks HTTP) to queue
 up and reliably execute idempotent tasks.
 
 For example, in Python:
@@ -19,17 +20,9 @@ endpoint = os.environ.get('TORQUE_URL')
 response = requests.post(endpoint, data=data, params=params)
 ```
 
-Torque is free, open source software [released into the public domain][] with
-no license restrictions. It is packaged for deployment as a [Chef cookbook][],
-for development [using Vagrant][] and is provided as a hosted service by
-[nTorque.com][].
-
 [Torque]: http://documentup.com/thruflo/torque
 [web hooks]: http://timothyfitz.com/2009/02/09/what-webhooks-are-and-why-you-should-care/
 [released into the public domain]: http://unlicense.org/UNLICENSE
-[Chef cookbook]: https://github.com/thruflo/torque-cookbook 
-[using Vagrant]: https://github.com/thruflo/torque-vagrant
-[nTorque.com]: http://www.ntorque.com
 
 ## Rationale
 
@@ -53,10 +46,7 @@ Because it uses web hooks, you can:
 Torque provides the following endpoints:
 
 * `POST /` to enqueue a task
-* `GET /stats` to view usage statistics
 * `GET /tasks/:id` to view task status
-* `DELETE /tasks/:id` to delete a task
-* `DELETE /` to delete all tasks
 
 And the following features:
 
@@ -70,8 +60,7 @@ And the following features:
 
 Torque is a Python application comprising of a web application and one or more
 worker processes. These use a [PostgreSQL][] database to persist tasks and a
-[Redis][] database as a notification channel. The whole stack is patched with
-[Gevent][] so task storage and execution are non-blocking.
+[Redis][] database as a notification channel.
 
 <pre><code>+------+  |  +--------+    +--------+    +--------+  |
 |POST /|     |Frontend|    |Web app |    |Postgres|
@@ -93,95 +82,209 @@ worker processes. These use a [PostgreSQL][] database to persist tasks and a
                                          +--------+  |  +---------+
 </code></pre>
 
-When the web hook returns with a 200 response, the task is marked as `completed`.
-Completed tasks are periodically deleted after a configurable time period. When
-the web hook call fails or returns a 500 response code (after redirects have
-been followed), the task is set to `retry` after a delay (based on the backoff
-algorithms [described above](#functionality)).
+The webhook response handling code looks like this:
 
-XXX 201 > status code < 500 is set to `failed`.
+```if response is None or status_code > 499:
+    task.reschedule()
+elif status_code > 201:
+    task.failed()
+else:
+    task.completed()
+```
 
-XXX communicate the core truth-in-the-db, transactional acquire, will-be-retried
-logic -- and its tradeoff / side effect relationship with the timeout config value
-i.e.: the real nature of torque is that it's a) transactionally rock solid b) at
-the cost of potentially only retrying a task after its maximum request timeout --
-so if you set a high timeout, in edge case scenarios (when redis or the worker
-process fall over) you will wait until after the timeout before retrying (which
-is pretty OK, given that its very edge case and is basically the same behaviour
-as a request timeout, i.e.: you should never expect to retry a task whilst its
-pending).
+Which is to say that in the event of a response with status code:
 
-XXX perhaps this is best expressed as progressive enhancement: at core, tasks
-are saved to db and db is polled, with a minimum of the request timeout delay
-to retry. If we can, we retry sooner than than the timeout and for successful
-tasks, we use redis as an optimisation to skip the initial polling. So for
-successful tasks in normal operation, we get real time push to worker process
-via redis but in failure scenarios (with redis, worker falling over and task
-execution) we retain the virtues of the old fashioned hard disk.
+* 200 or 201: the task is marked as successfully completed
+* 202 - 499: the task is marked as failed and is not retried
+* 500 (or network error): the task is retried
 
+Note that it's eminently possible to fork / provide a patch that makes this
+behaviour more configurable, e.g.: to provide an alternative strategy to
+retry failed tasks. Also that completed tasks are periodically deleted after
+a configurable time period.
+
+## Algorithm
+
+The real crux of Torque is a trade-off between request timeout and retry delay.
+It's worth understanding this before deploying -- and how to simply mitigate
+it by a) specifying an appropriate default timeout and b) overriding this as
+necessary on a task by task basis.
+
+Like [RQ][] and [Resque][], Torque uses Redis as a push messaging channel. A
+request comes in, a notification is `rpush`d onto a channel and `blpop`d off.
+This means that tasks are executed immediately, with a nice evented / push
+notification pattern.
+
+Unlike [RQ][] and [Resque][], Torque doesn't trust Redis as a persistence layer.
+Instead, it relies on good-old-fashioned PostgreSQL: the first thing Torque does
+when a new task arrives is write it to disk (with a due date and a retry count).
+
+Now, when the consumer receives the push notification from Redis, it reads the
+data from PostgreSQL and performs the task by making a POST request to the
+task's webhook url. In most cases, this request will succeed, the task will
+be marked as completed and no more needs to be done. However, this won't happen
+*every time* as the process is highly vulnerable to network and system errors.
+
+The Torque process can fall over. Redis can fall over. The webhook request can
+encounter any number of transient errors. The longer the web hook request takes
+to return, the more chance there is something will go wrong.
+
+Because of these risks, Torque explicitly refuses to rely on either the Redis
+notification channel or the web hook response as the source of truth&trade;
+about a task's status -- whether it has been performed successfully or not.
+Instead, the single source of truth is, predictably enough, the PostgreSQL
+database.
+
+The way this is achieved is through an algorithm that automatically sets a
+task to retry every time it's read from the database. Explicitly, the query
+that reads the task data is performed within a transaction that also updates
+the task's due date and retry count. This means that, if nothing happens
+(the system falls over, the network hangs) after reading the task, it will
+remain stored in a state that indicates when it needs to be retried.
+
+If the task is completed successfully, it is marked as completed before its
+retry date is due. If the web hook call fails, the task's status is updated
+as soon as the information becomes available, e.g.: bringing the retry date
+forward or making it as failed. However, fundamentally, if nothing happens,
+the task remains untouched, ready to retried when due.
+
+Incidentally, tasks due to be retried are straightforwardly picked up by a
+background process that polls the database relatively infrequently (e.g.:
+every few seconds).
+
+More importantly, and where this description has been heading, is the relation
+between the due date of the task as it lies, gloriously in repose, and the
+timeout of the web hook call. For there is one thing we don't want to do, and
+that is keep retrying tasks before they've had a chance to complete.
+
+In order to prevent this behaviour -- which would hammer the web hook server
+with unnecessary requests -- we impose a simple constraint. The due date set
+when the task is transactionally read and incremented must be longer than the
+web hook timeout. (In fact, we also add a two second margin to cover any time
+it takes to prepare and handle the web hook request).
+
+This means that, in the worst case (when a web hook request does timeout or
+the system falls over when performing a task), you must wait for the full
+timeout duration before your task is retried. Normally, this is a relatively
+minor problem. However, it is amplified by the nature of web hooks: that you
+may naturally want to set a relatively high timeout on request handlers that
+are designed to execute long running tasks.
+
+For most web applications, web hooks might only need a maximum of a minute or
+two to perform a task like sending an email or re-calculating a score. For
+more complex tasks, like re-generating a whole site, or performing some kind
+of data analysis, you may want to configure a much higher timeout. However,
+this is unlikely to be an unacceptable period to wait before retrying sending
+your new user's welcome or reset password email.
+
+Left as a one-size fits all configuration option, the choice is stark.
+Responsive task-retry times in failure scenarios with a low timeout may result
+in long-running tasks hammering your server. Higher timeouts will allow those
+to run but may delay simpler tasks being retried.
+
+The good news, of course, is that you don't have to rely on a one-size fits all
+configuration value: `TORQUE_DEFAULT_TIMEOUT`. You can also override the web
+hook request timeout on a task by task basis, via the `timeout` query parameter.
+
+So, after all this, the solution is to set an appropriate timeout for
+different length of tasks. Simple -- once you know how the system works.
+
+[RQ]: http://python-rq.org/
+[Resque]: https://github.com/resque/resque
 [PostgreSQL]: http://www.postgresql.org
 [Redis]: http://redis.io
 [Gevent]: http://www.gevent.org
 
 ## Installation
 
-Because Torque has a number of moving parts, it's recommended that you install
-it in a VM / container using the [chef cookbook][] provided. For example, using
-[librarian-chef][] add the following lines to your `Cheffile`:
+Installation is currently manual. You need Redis and Postgres running. Clone
+the repo, install the Python app using:
 
-```ruby
-cookbook "torque",
-    :git => "https://github.com/thruflo/torque-cookbook"
-```
+    pip install -r requirements.txt
 
-Then in your `node.json`, add the torque recipe to your `run_list` and override
-any configuration attributes:
+If you like, install Foreman, to run the multiple processes, using:
 
-```javascript
-{
-  "torque": {
-    // override attributes here
-  },
-  ...
-  "run_list": [
-      "recipe[torque]"
-      ...
-    ]
-  }
-}
-```
+    bundle install
 
-As a convenience, you can get a development environment up and running using
-[Vagrant][] by cloning the [torque-vagrant][] repo and running `vagrant up`
-(which provisions the environment using [chef-solo][]):
+Run the migrations:
 
-```shell
-git clone https://github.com/thruflo/torque-vagrant.git
-cd torque-vagrant
-vagrant up
-```
+    foreman run alembic upgrade head
 
-[librarian-chef]: https://github.com/applicationsonline/librarian-chef
-[chef cookbook]: https://github.com/thruflo/torque-cookbook 
-[Vagrant]: http://www.vagrantup.com
-[torque-vagrant]: https://github.com/thruflo/torque-vagrant
-[Chef-solo]: http://docs.opscode.com/chef_solo.html
+If you'd like to, bootstrap an app (to authenticate access with an API key):
+
+    foreman run python alembic/scripts/create_application.py --name YOURAPP
 
 ## Configuration
 
-XXX todo:
+Use environment variables to configure:
 
-* `torque.authenticate`
-* `torque.enable_hsts`
-* `torque.backoff`: linear|exponential
+* `TORQUE_AUTHENTICATE`: whether to require authentication; defaults to `False`
+  -- see authentication section in Usage below
+* `TORQUE_ENABLE_HSTS`: set this to `True` if you're using https
+* `HSTS_PROTOCOL_HEADER`: set this to, e.g.: `X-Forwarded-Proto` if you're running
+  behind an https proxy frontend
+
+* `TORQUE_BACKOFF`: `exponential` (default) or `linear`
+* `TORQUE_CLEANUP_AFTER_DAYS`: how many days to leave tasks in the db for, defaults
+  to `7`
+* `TORQUE_DEFAULT_TIMEOUT`: how long, in seconds, to wait before treating a web
+  hook request as having failed -- defaults to `60` see the algorithm section
+  above for details
+* `TORQUE_MIN_DUE_DELAY`: minimum delay before retrying -- don't set any lower
+  than `2`
+* `TORQUE_MAX_DUE_DELAY`: maximum retry delay -- defaults to `7200` but you
+  should make sure its longer than `TORQUE_DEFAULT_TIMEOUT`
+* `TORQUE_MAX_RETRIES`: how many attempts before giving up on a task -- defaults
+  to `36`
+
+* `TORQUE_REDIS_CHANNEL`: name of your Redis list used as a notification channel;
+  defaults to `torque`
+* `REDIS_URL`, etc.: see [pyramid_redis][] for details on how to configure your
+  Redis connection
+
+* `DATABASE_URL` etc.: your SQLAlchemy engine configuration string, defaults to
+  `postgresql:///torque`
+* other db config options are `DATABASE_MAX_OVERFLOW`, `DATABASE_POOL_SIZE` and
+  `DATABASE_POOL_RECYCLE`
+
+* `MODE`: defaults to `development`, set to `production` when you deploy for real
 
 ## Usage / API
 
-XXX todo:
+### Authentication
 
-* `TORQUE_API_KEY` header
-* document endpoints
-* pass through headers
+If you set `TORQUE_AUTHENTICATE` to `True` then you need to create at least one
+application (e.g.: using the `alembic/scripts/create_application.py` script) and
+provide its api key in the `TORQUE_API_KEY` header when enqueuing a task.
+
+### `POST /`
+
+To enqueue a task, make a POST request to the root path of your Torque
+installation.
+
+**Required**:
+
+* a `url` query parameter; this is the url to your web hook that you want Torque
+  to call to perform your task
+
+**Optional**:
+
+* a `timeout` query parameter; how long, in seconds, to wait before treating the
+  web hook call as having timed out -- see the Algorithm section above for context
+
+**Data**:
+
+This aside, you can pass through any POST data, encoded as any content type you
+like. The data, content type and character encoding will be passed on in the POST
+request to your web hook.
+
+**Headers**:
+
+Aside from the content type, length and charset headers, derived from your
+request, you can specify headers to pass through to your web hook, by prefixing
+the header name with `TORQUE-PASSTHROUGH-`. So, for example, to pass through
+a `FOO: Bar` header, you would provide `TORQUE-PASSTHROUGH-FOO: Bar` in your
+request headers.
 
 ## Pro-Tips
 
