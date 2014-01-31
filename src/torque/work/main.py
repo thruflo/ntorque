@@ -26,6 +26,7 @@ from torque import model
 DEFAULTS = {
     'mode': os.environ.get('MODE', 'development'),
     'redis_channel': os.environ.get('TORQUE_REDIS_CHANNEL', 'torque'),
+    'cleanup_after_days': os.environ.get('TORQUE_CLEANUP_AFTER_DAYS', 7),
 }
 
 class Bootstrap(object):

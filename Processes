@@ -1,3 +1,4 @@
 web:      ./run.sh
+cleanup:  torque_cleanup
 consume:  torque_consume
 requeue:  torque_requeue

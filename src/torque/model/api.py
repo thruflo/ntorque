@@ -5,6 +5,7 @@
 __all__ = [
     'CreateApplication',
     'CreateTask',
+    'DeleteOldTasks',
     'GetActiveKey',
     'GetDueTasks',
     'LookupApplication',
@@ -167,6 +168,28 @@ class GetDueTasks(object):
         # Return the results.
         return query.all()
     
+
+class DeleteOldTasks(object):
+    """Delete tasks last modified more than a time delta ago."""
+    
+    def __init__(self, **kwargs):
+        self.utcnow = kwargs.get('utcnow', datetime.utcnow)
+        self.task_cls = kwargs.get('task_cls', model.Task)
+    
+    def __call__(self, delta):
+        """Build a query and call a bulk delete."""
+        
+        # Unpack.
+        model_cls = self.task_cls
+        delta_ago = self.utcnow() - delta
+        
+        # Build the query.
+        query = model_cls.query.filter(model_cls.modified<delta_ago)
+        with transaction.manager:
+            num_deleted = query.delete()
+        return num_deleted
+    
+
 
 class LookupApplication(object):
     """Lookup an application by ``api_key``."""

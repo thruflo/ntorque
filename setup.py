@@ -25,6 +25,7 @@ setup(
             'ls = setuptools_git:gitlsfiles'
         ],
         'console_scripts': [
+            'torque_cleanup = torque.work.cleanup:main',
             'torque_consume = torque.work.consume:main',
             'torque_requeue = torque.work.requeue:main'
         ]
