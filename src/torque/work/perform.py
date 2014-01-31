@@ -14,12 +14,14 @@ logger = logging.getLogger(__name__)
 import gevent
 import requests
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from torque import backoff
 from torque import model
 
 class TaskPerformer(object):
     def __init__(self, **kwargs):
-        self.task_manager = kwargs.get('acquire_task', model.TaskManager())
+        self.task_manager_cls = kwargs.get('task_manager_cls', model.TaskManager)
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
         self.post = kwargs.get('post', requests.post)
         self.sleep = kwargs.get('sleep', gevent.sleep)
@@ -32,8 +34,13 @@ class TaskPerformer(object):
         # get-the-task-and-incr-its-retry-count. This ensures that even if the
         # next instruction off the queue is for the same task, or if a parallel
         # worker has the same instruction, the task will only be acquired once.
+        task_data = None
+        task_manager = self.task_manager_cls()
         task_id, retry_count = map(int, instruction.split(':'))
-        task_data = self.task_manager.acquire(task_id, retry_count)
+        try:
+            task_data = task_manager.acquire(task_id, retry_count)
+        except SQLAlchemyError as err:
+            logger.warn(err)
         if not task_data:
             return
         
@@ -75,11 +82,11 @@ class TaskPerformer(object):
             # XXX what we could also do here are:
             # - set a more informative status flag (even if only descriptive)
             # - noop if the greenlet request timed out
-            status = self.task_manager.reschedule()
+            status = task_manager.reschedule()
         elif response.status_code > 201:
-            status = self.task_manager.fail()
+            status = task_manager.fail()
         else:
-            status = self.task_manager.complete()
+            status = task_manager.complete()
         return status
     
 

@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 import time
 
+from redis.exceptions import RedisError
+from sqlalchemy.exc import SQLAlchemyError
+
 from pyramid_redis.hooks import RedisFactory
 from torque import model
 from .main import Bootstrap
@@ -32,6 +35,7 @@ class RequeuePoller(object):
         self.interval = interval
         self.get_tasks = kwargs.get('get_tasks', model.GetDueTasks())
         self.logger = kwargs.get('logger', logger)
+        self.session = kwargs.get('session', model.Session)
         self.time = kwargs.get('time', time)
     
     def start(self):
@@ -44,11 +48,18 @@ class RequeuePoller(object):
             t1 = self.time.time()
             try:
                 tasks = self.get_tasks()
-            except Exception as err:
+            except SQLAlchemyError as err:
                 self.logger.warn(err, exc_info=True)
             else:
-                for task in tasks:
-                    self.enqueue(task)
+                if tasks:
+                    for task in tasks:
+                        try:
+                            self.enqueue(task)
+                        except RedisError as err:
+                            self.logger.warn(err, exc_info=True)
+                        self.time.sleep(self.delay)
+            finally:
+                self.session.remove()
             current_time = self.time.time()
             due_time = t1 + self.interval
             if current_time < due_time:
@@ -68,6 +79,7 @@ class ConsoleScript(object):
         self.requeue_cls = kwargs.get('requeue_cls', RequeuePoller)
         self.get_redis = kwargs.get('get_redis', RedisFactory())
         self.get_config = kwargs.get('get_config', Bootstrap())
+        self.session = kwargs.get('session', model.Session)
     
     def __call__(self):
         """Get the configured registry. Unpack the redis client and input
@@ -86,8 +98,8 @@ class ConsoleScript(object):
         poller = self.requeue_cls(redis_client, channel)
         try:
             poller.start()
-        except KeyboardInterrupt:
-            pass
+        finally:
+            self.session.remove()
     
 
 main = ConsoleScript()

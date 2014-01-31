@@ -14,7 +14,10 @@ logger = logging.getLogger(__name__)
 import threading
 import time
 
+from redis.exceptions import RedisError
 from pyramid_redis.hooks import RedisFactory
+
+from torque import model
 
 from .main import Bootstrap
 from .perform import TaskPerformer
@@ -30,7 +33,7 @@ class ChannelConsumer(object):
         self.channels = channels
         self.connect_delay = delay
         self.timeout = timeout
-        self.handler = kwargs.get('handler', TaskPerformer())
+        self.handler_cls = kwargs.get('handler_cls', TaskPerformer)
         self.logger = kwargs.get('logger', logger)
         self.sleep = kwargs.get('sleep', time.sleep)
         self.thread_cls = kwargs.get('thread_cls', threading.Thread)
@@ -50,7 +53,7 @@ class ChannelConsumer(object):
         while True:
             try:
                 return_value = self.redis.blpop(self.channels, timeout=self.timeout)
-            except Exception as err:
+            except RedisError as err:
                 self.logger.warn(err, exc_info=True)
                 self.sleep(self.timeout)
             else:
@@ -63,7 +66,8 @@ class ChannelConsumer(object):
         """Handle the ``data`` in a new thread."""
         
         args = (data, self.control_flag)
-        thread = self.thread_cls(target=self.handler, args=args)
+        handler = self.handler_cls()
+        thread = self.thread_cls(target=handler, args=args)
         thread.start()
     
 
@@ -74,6 +78,7 @@ class ConsoleScript(object):
         self.consumer_cls = kwargs.get('consumer_cls', ChannelConsumer)
         self.get_redis = kwargs.get('get_redis', RedisFactory())
         self.get_config = kwargs.get('get_config', Bootstrap())
+        self.session = kwargs.get('session', model.Session)
     
     def __call__(self):
         """Get the configured registry. Unpack the redis client and input
@@ -92,8 +97,8 @@ class ConsoleScript(object):
         consumer = self.consumer_cls(redis_client, input_channels)
         try:
             consumer.start()
-        except KeyboardInterrupt:
-            pass
+        finally:
+            self.session.remove()
     
 
 main = ConsoleScript()
