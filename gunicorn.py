@@ -11,8 +11,8 @@ import signal
 from pyramid.settings import asbool
 
 def _post_fork(server, worker):
-    import gevent_psycopg2
-    gevent_psycopg2.monkey_patch()
+    import psycogreen.gevent
+    psycogreen.gevent.patch_psycopg()
 
 def _on_starting(server):
     import gevent.monkey
