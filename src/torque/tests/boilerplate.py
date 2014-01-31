@@ -12,6 +12,8 @@ try:
 except ImportError: #pragma: no cover
     pass
 
+import os
+
 from torque import api
 from torque import model
 from torque.work import main as work
@@ -21,7 +23,8 @@ from pyramid_redis import hooks as redis_hooks
 TEST_SETTINGS = {
     'redis.db': 5,
     'redis.url': 'redis://localhost:6379',
-    'sqlalchemy.url': u'postgresql:///torque_test',
+    'sqlalchemy.url': os.environ.get('TEST_DATABASE_URL',
+            u'postgresql:///torque_test'),
     'torque.mode': 'testing',
     'torque.redis_channel': 'torque:testing',
 }

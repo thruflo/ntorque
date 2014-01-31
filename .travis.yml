@@ -2,10 +2,20 @@ language: python
 python:
   - "2.7"
 
+env:
+  - TEST_DATABASE_URL=postgresql:///postgres@torque_test
+
+services:
+  - redis-server
+
 install:
   - "pip install setuptools_git"
   - "pip install -r requirements.txt"
   - "pip install ."
 
+before_script:
+  - "psql -c 'create database torque_test;' -U postgres"
+
 script:
   - "nosetests --with-doctest torque"
+
