@@ -254,11 +254,13 @@ Redis:
 
 Database:
 
-* `DATABASE_URL` etc.: your SQLAlchemy engine configuration string, defaults to
-  `postgresql:///torque`
+* `DATABASE_URL` etc.: your [database configuration string][], defaults
+  to `postgresql:///torque`
 * other db config options are `DATABASE_MAX_OVERFLOW`, `DATABASE_POOL_SIZE` and
   `DATABASE_POOL_RECYCLE`
 
+[pyramid_redis]: https://github.com/thruflo/pyramid_redis
+[database configuration string]: http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html
 
 ## Usage / API
 
