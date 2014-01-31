@@ -82,17 +82,7 @@ worker processes. These use a [PostgreSQL][] database to persist tasks and a
                                          +--------+  |  +---------+
 </code></pre>
 
-The webhook response handling code looks like this:
-
-```if response is None or status_code > 499:
-    task.reschedule()
-elif status_code > 201:
-    task.failed()
-else:
-    task.completed()
-```
-
-Which is to say that in the event of a response with status code:
+In the event of a response with status code:
 
 * 200 or 201: the task is marked as successfully completed
 * 202 - 499: the task is marked as failed and is not retried
