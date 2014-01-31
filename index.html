@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torque</title>
+    
+    <link rel="stylesheet" type="text/css" href="http://documentup.com/stylesheets/screen.css">
+    
+    
+
+    
+
+    <!-- Typekit -->
+    
+      <script type="text/javascript">
+        (function() {
+          var config = {
+            kitId: 'hjp0pft',
+            scriptTimeout: 3000
+          };
+          var h=document.getElementsByTagName("html")[0];h.className+=" wf-loading";var t=setTimeout(function(){h.className=h.className.replace(/( |^)wf-loading( |$)/g,"");h.className+=" wf-inactive"},config.scriptTimeout);var tk=document.createElement("script");tk.src='//use.typekit.net/'+config.kitId+'.js';tk.type="text/javascript";tk.async="true";tk.onload=tk.onreadystatechange=function(){var a=this.readyState;if(a&&a!="complete"&&a!="loaded")return;clearTimeout(t);try{Typekit.load(config)}catch(b){}};var s=document.getElementsByTagName("script")[0];s.parentNode.insertBefore(tk,s)
+        })();
+      </script>
+    
+  </head>
+  <body><div id="container">
+  <div id="nav">
+    
+      <div id="header">
+        <a href="#" id="logo">Torque</a>
+      </div>
+    
+    <ul id="sections">
+      
+        <li>
+          <a href="#rationale">Rationale</a>
+          
+        </li>
+      
+        <li>
+          <a href="#functionality">Functionality</a>
+          
+        </li>
+      
+        <li>
+          <a href="#implementation">Implementation</a>
+          
+        </li>
+      
+        <li>
+          <a href="#algorithm">Algorithm</a>
+          
+        </li>
+      
+        <li>
+          <a href="#installation">Installation</a>
+          
+        </li>
+      
+        <li>
+          <a href="#configuration">Configuration</a>
+          
+        </li>
+      
+        <li>
+          <a href="#usage-api">Usage / API</a>
+          
+            <ul>
+              
+                <li>
+                  <a href="#usage-api/authentication">Authentication</a>
+                </li>
+              
+                <li>
+                  <a href="#usage-api/post">`POST /`</a>
+                </li>
+              
+                <li>
+                  <a href="#usage-api/get-task-id">`GET /task:id`</a>
+                </li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="#pro-tips">Pro-Tips</a>
+          
+        </li>
+      
+        <li>
+          <a href="#support">Support</a>
+          
+        </li>
+      
+    </ul>
+    
+      <div class="extra" id="github">
+        <a href="https://github.com/thruflo/torque">Source on GitHub</a>
+      </div>
+      
+        <div class="extra" id="github-issues">
+          <a href="https://github.com/thruflo/torque/issues">Issues</a>
+        </div>
+      
+      
+        <div id="travis" class="extra">
+          <a href="http://travis-ci.org/thruflo/torque">
+            <img src="https://secure.travis-ci.org/thruflo/torque.png?branch=master">
+          </a>
+        </div>
+      
+    
+    
+  </div>
+  <div id="content">
+    
+      <a href="https://github.com/thruflo/torque" id="github-ribbon"><img src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a>
+    
+    <h1>Torque - web hook task queue</h1>
+<p><a href="http://documentup.com/thruflo/torque">Torque</a> is a <a href="http://www.celeryproject.org">task</a>
+<a href="https://github.com/resque/resque">queue</a> service that uses <a href="http://timothyfitz.com/2009/02/09/what-webhooks-are-and-why-you-should-care/">web hooks</a>.
+It is free, open source software <a href="http://unlicense.org/UNLICENSE">released into the public domain</a> that
+you can use from any programming language (that speaks HTTP) to queue
+up and reliably execute idempotent tasks. For example, in Python:</p>
+<pre><code class="lang-python"><span class="keyword">import</span> os
+<span class="keyword">import</span> requests
+
+params = {<span class="string">'url'</span>: <span class="string">'http://example.com/myhooks/send_email'</span>}
+data = {<span class="string">'user_id'</span>: <span class="number">1234</span>}
+
+endpoint = os.environ.get(<span class="string">'TORQUE_URL'</span>)
+response = requests.post(endpoint, data=data, params=params)</code></pre>
+<h2 id='rationale'>Rationale</h2 id='rationale'>
+<p>Torque is designed to be a good solution when you need more reliability than
+fire-and-forget but you don&#39;t need an <a href="http://www.rabbitmq.com">AMPQ</a> / <a href="http://en.wikipedia.org/wiki/Enterprise_service_bus">ESB</a> sledgehammer to crack
+your &quot;do this later&quot; nut.</p>
+<p>Because it uses web hooks, you can:</p>
+<ol>
+<li>use it from (and to integrate) applications written in any language</li>
+<li>use DNS / web server load balancing to distribute tasks</li>
+<li>bootstrap your task execution environment the way you bootstrap a web
+application -- i.e.: once at startup, potentially re-using your web
+application&#39;s configuration and middleware</li>
+</ol>
+<h2 id='functionality'>Functionality</h2 id='functionality'>
+<p>Torque provides the following endpoints:</p>
+<ul>
+<li><code>POST /</code> to enqueue a task</li>
+<li><code>GET /tasks/:id</code> to view task status</li>
+</ul>
+<p>And the following features:</p>
+<ul>
+<li>persistent task storage</li>
+<li>non-blocking, concurrent task execution</li>
+<li>HTTPS and redirect support</li>
+<li>configurable (linear or exponential) backoff to retry tasks that fail due
+to network, connection or internal server errors</li>
+</ul>
+<h2 id='implementation'>Implementation</h2 id='implementation'>
+<p>Torque is a Python application comprising of a web application and one or more
+worker processes. These use a <a href="http://www.postgresql.org">PostgreSQL</a> database to persist tasks and a
+<a href="http://redis.io">Redis</a> database as a notification channel.</p>
+<pre><code>+------+  |  +--------+    +--------+    +--------+  |
+|POST /|     |Frontend|    |Web app |    |Postgres|
+|------|  |  |--------|    |--------|    |--------|  |
+|- url |+- ->|- auth  |+-->|- store |+-->|- tasks |
+|- data|  |  |- rate  |    |- notify|    |        |  |
+|      |     |  limits|    |        |    |        |
++------+  |  +--------+    +--------+    +--------+
+                               +           ^    +    |
+          |                    |           |   url
+                             rpush        get  data  |
+          |                    |           |    |
+                               v           +    v    |
+          |                 +--------+   +--------+     +---------+
+                            |Redis   |   |Worker  |  |  |Web hook |
+          |                 +--------+   |--------|     |---------|
+                               |         |- POST  |+-|->|- perform|
+          | Torque             +-blpop-> |  data  |     |  task   |
+                                         +--------+  |  +---------+
+</code></pre>
+
+<p>In the event of a response with status code:</p>
+<ul>
+<li>200 or 201: the task is marked as successfully completed</li>
+<li>202 - 499: the task is marked as failed and is not retried</li>
+<li>500 (or network error): the task is retried</li>
+</ul>
+<p>Note that it&#39;s eminently possible to fork / provide a patch that makes this
+behaviour more configurable, e.g.: to provide an alternative strategy to
+retry failed tasks. Also that completed tasks are periodically deleted after
+a configurable time period.</p>
+<h2 id='algorithm'>Algorithm</h2 id='algorithm'>
+<p>The real crux of Torque is a trade-off between request timeout and retry delay.
+It&#39;s worth understanding this before deploying -- and how to simply mitigate
+it by a) specifying an appropriate default timeout and b) overriding this as
+necessary on a task by task basis.</p>
+<p>Like <a href="http://python-rq.org/">RQ</a> and <a href="https://github.com/resque/resque">Resque</a>, Torque uses Redis as a push messaging channel. A
+request comes in, a notification is <code>rpush</code>d onto a channel and <code>blpop</code>d off.
+This means that tasks are executed immediately, with a nice evented / push
+notification pattern.</p>
+<p>Unlike <a href="http://python-rq.org/">RQ</a> and <a href="https://github.com/resque/resque">Resque</a>, Torque doesn&#39;t trust Redis as a persistence layer.
+Instead, it relies on good-old-fashioned PostgreSQL: the first thing Torque does
+when a new task arrives is write it to disk (with a due date and a retry count).</p>
+<p>Now, when the consumer receives the push notification from Redis, it reads the
+data from disk and performs the task by making a POST request to the
+task&#39;s webhook url. In most cases, this request will succeed, the task will
+be marked as completed and no more needs to be done. However, this won&#39;t happen
+<em>every time</em> as the process is highly vulnerable to network errors.</p>
+<p>The Torque process can fall over. Redis can fall over. The webhook request can
+encounter any number of transient errors. The longer the web hook request takes
+to return, the more chance there is something will go wrong.</p>
+<p>Because of these risks, Torque explicitly refuses to rely on either the Redis
+notification channel or the web hook response as the source of truth&trade;
+about a task&#39;s status -- whether it has been performed successfully or not.
+Instead, the single source of truth is, predictably enough, the PostgreSQL
+database.</p>
+<p>The way this is achieved is through an algorithm that automatically sets a
+task to retry every time it&#39;s read from the database. Explicitly, the query
+that reads the task data is performed within a transaction that also updates
+the task&#39;s due date and retry count. This means that, if nothing happens
+(the system falls over, the network hangs) after reading the task, it will
+remain stored in a state that indicates that and when it needs to be retried.</p>
+<p>If the task is completed successfully, it is marked as completed before its
+retry date is due. If the web hook call fails, the task&#39;s status is updated
+as soon as the information becomes available, e.g.: bringing the retry date
+forward or making it as failed. However, fundamentally, if nothing happens,
+the task remains untouched, ready to retried when due.</p>
+<p>Incidentally, tasks due to be retried are straightforwardly picked up by a
+background process that polls the database relatively infrequently (e.g.:
+every few seconds).</p>
+<p>More importantly, and where this description has been heading, is the relation
+between the due date of the task as it lies, gloriously in repose, and the
+timeout of the web hook call. For there is one thing we don&#39;t want to do, and
+that is keep retrying tasks before they&#39;ve had a chance to complete.</p>
+<p>In order to prevent this behaviour -- which would hammer the web hook server
+with unnecessary requests -- we impose a simple constraint. The due date set
+when the task is transactionally read and incremented must be longer than the
+web hook timeout. (Plus a small margin to cover the time it takes to prepare
+and handle the web hook request).</p>
+<p>This means that, in the worst case (when a web hook request does timeout or
+the system falls over when performing a task), you must wait for the full
+timeout duration before your task is retried. Normally, this is a relatively
+minor problem. However, it is amplified by the nature of web hooks: that you
+may naturally want to set a relatively high timeout on request handlers that
+are designed to execute long running tasks.</p>
+<p>For most web applications, web hooks might only need a maximum of a minute or
+two to perform a task like sending an email or re-calculating a score. For
+more complex tasks, like re-generating a whole site, or performing some kind
+of data analysis, you may want to configure a much higher timeout. However,
+this is unlikely to be an unacceptable period to wait before retrying sending
+your new user&#39;s welcome or reset password email.</p>
+<p>Left as a one-size fits all configuration option, the choice is stark.
+Short retry times may result in long-running tasks hammering your server.
+Higher timeouts may delay simpler tasks being performed.</p>
+<p>The good news, of course, is that you don&#39;t have to rely on a one-size fits all
+configuration value: <code>TORQUE_DEFAULT_TIMEOUT</code>. You can also override the web
+hook request timeout on a task by task basis, via the <code>timeout</code> query parameter.
+So, after all this, the solution is to set an appropriate timeout for
+different length of tasks. Simple -- once you know how the system works.</p>
+<h2 id='installation'>Installation</h2 id='installation'>
+<p>Clone the repo, install the Python app using:</p>
+<pre><code><span class="title">pip</span> install setuptools_git
+<span class="title">pip</span> install -r requirements.txt
+<span class="title">pip</span> install .</code></pre>
+<p>You need Redis and Postgres running. If necessary, create the database:</p>
+<pre><code><span class="comment">createdb</span> <span class="literal">-</span><span class="comment">T</span> <span class="comment">template0</span> <span class="literal">-</span><span class="comment">E</span> <span class="comment">UTF8</span> <span class="comment">torque</code></pre>
+<p>If you like, install Foreman, to run the multiple processes, using:</p>
+<pre><code><span class="title">bundle</span> install</code></pre>
+<p>Run the migrations:</p>
+<pre><code><span class="title">foreman</span> run alembic upgrade head</code></pre>
+<p>Bootstrap an app (if you&#39;d like to authenticate access with an API key):</p>
+<pre><code><span class="comment">foreman</span> <span class="comment">run</span> <span class="comment">python</span> <span class="comment">alembic/scripts/create_application</span>.<span class="comment">py</span> <span class="literal">-</span><span class="literal">-</span><span class="comment">name</span> <span class="comment">YOURAPP</code></pre>
+<p>You should then be able to:</p>
+<pre><code>foreman <span class="operator"><span class="keyword">start</span></code></pre>
+<p>Alternatively, skip the Foreman stuff and run the commands listed in <code>Processes</code>
+manually / using a Docker / Chef / init.d wrapper. Or push to Heroku, run the
+migrations and it should just work.</p>
+<h2 id='configuration'>Configuration</h2 id='configuration'>
+<p>Algorithm / Behaviour:</p>
+<ul>
+<li><code>TORQUE_BACKOFF</code>: <code>exponential</code> (default) or <code>linear</code></li>
+<li><code>TORQUE_CLEANUP_AFTER_DAYS</code>: how many days to leave tasks in the db for, defaults
+to <code>7</code></li>
+<li><code>TORQUE_DEFAULT_TIMEOUT</code>: how long, in seconds, to wait before treating a web
+hook request as having failed -- defaults to <code>60</code> see the algorithm section
+above for details</li>
+<li><code>TORQUE_MIN_DUE_DELAY</code>: minimum delay before retrying -- don&#39;t set any lower
+than <code>2</code></li>
+<li><code>TORQUE_MAX_DUE_DELAY</code>: maximum retry delay -- defaults to <code>7200</code> but you
+should make sure its longer than <code>TORQUE_DEFAULT_TIMEOUT</code></li>
+<li><code>TORQUE_MAX_RETRIES</code>: how many attempts before giving up on a task -- defaults
+to <code>36</code></li>
+</ul>
+<p>Deployment:</p>
+<ul>
+<li><code>TORQUE_AUTHENTICATE</code>: whether to require authentication; defaults to <code>False</code>
+-- see authentication section in Usage below</li>
+<li><code>TORQUE_ENABLE_HSTS</code>: set this to <code>True</code> if you&#39;re using https</li>
+<li><code>HSTS_PROTOCOL_HEADER</code>: set this to, e.g.: <code>X-Forwarded-Proto</code> if you&#39;re running
+behind an https proxy frontend</li>
+<li><code>MODE</code>: defaults to <code>development</code>, set to <code>production</code> when you deploy for real</li>
+</ul>
+<p>Redis:</p>
+<ul>
+<li><code>TORQUE_REDIS_CHANNEL</code>: name of your Redis list used as a notification channel;
+defaults to <code>torque</code></li>
+<li><code>REDIS_URL</code>, etc.: see <a href="https://github.com/thruflo/pyramid_redis">pyramid_redis</a> for details on how to configure your
+Redis connection</li>
+</ul>
+<p>Database:</p>
+<ul>
+<li><code>DATABASE_URL</code> etc.: your <a href="http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html">database configuration string</a>, defaults
+to <code>postgresql:///torque</code></li>
+<li>other db config options are <code>DATABASE_MAX_OVERFLOW</code>, <code>DATABASE_POOL_SIZE</code> and
+<code>DATABASE_POOL_RECYCLE</code></li>
+</ul>
+<h2 id='usage-api'>Usage / API</h2 id='usage-api'>
+<h3 id='usage-api/authentication'>Authentication</h3 id='usage-api/authentication'>
+<p>If you set <code>TORQUE_AUTHENTICATE</code> to <code>True</code> then you need to create at least one
+application (e.g.: using the <code>alembic/scripts/create_application.py</code> script) and
+provide its api key in the <code>TORQUE_API_KEY</code> header when enqueuing a task.</p>
+<h3 id='usage-api/post'><code>POST /</code></h3 id='usage-api/post'>
+<p>To enqueue a task, make a POST request to the root path of your Torque
+installation.</p>
+<p><strong>Required</strong>:</p>
+<ul>
+<li>a <code>url</code> query parameter; this is the url to your web hook that you want Torque
+to call to perform your task</li>
+</ul>
+<p><strong>Optional</strong>:</p>
+<ul>
+<li>a <code>timeout</code> query parameter; how long, in seconds, to wait before treating the
+web hook call as having timed out -- see the Algorithm section above for context</li>
+</ul>
+<p><strong>Data</strong>:</p>
+<p>This aside, you can pass through any POST data, encoded as any content type you
+like. The data, content type and character encoding will be passed on in the POST
+request to your web hook.</p>
+<p><strong>Headers</strong>:</p>
+<p>Aside from the content type, length and charset headers, derived from your
+request, you can specify headers to pass through to your web hook, by prefixing
+the header name with <code>TORQUE-PASSTHROUGH-</code>. So, for example, to pass through
+a <code>FOO: Bar</code> header, you would provide <code>TORQUE-PASSTHROUGH-FOO: Bar</code> in your
+request headers.</p>
+<p><strong>Response</strong>:</p>
+<p>You should receive a 201 response with the url to the task in the <code>Location</code>
+header.</p>
+<h3 id='usage-api/get-task-id'><code>GET /task:id</code></h3 id='usage-api/get-task-id'>
+<p>Returns a JSON data dict with status information about a task.</p>
+<h2 id='pro-tips'>Pro-Tips</h2 id='pro-tips'>
+<p>Torque is a system for reliably calling web hook task handlers: not for
+implementing them. You are responsible for implementing and exposing your own
+web hooks. In most languages and frameworks this is very simple, e.g.: in Ruby
+using <a href="http://www.sinatrarb.com">Sinatra</a>:</p>
+<pre><code class="lang-ruby">post <span class="string">'/hooks/foo'</span> <span class="keyword">do</span>
+    <span class="comment"># your code here</span>
+<span class="keyword">end</span></code></pre>
+<p>Or in Python using <a href="http://flask.pocoo.org">Flask</a>:</p>
+<pre><code class="lang-python"><span class="decorator">@app.route('/hooks/foo', methods=['POST'])</span>
+<span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">()</span>:</span>
+    <span class="comment"># your code here</span></code></pre>
+<p>Key things to bear in mind are:</p>
+<h4>Return 200 OK</h4>
+<p>After successfully performing their task, your web hooks are expected to return
+an HTTP response with a <code>200</code> status code. If not, Torque will keep retrying
+the task.</p>
+<h4>Avoid Timeouts</h4>
+<p>Your web server must be configured with a high enough timeout to allow tasks
+enough time to complete. If not, you may be responding with an error when tasks
+are actually being performed successfully.</p>
+<p>For example, for a 30 minute timeout with <a href="http://httpd.apache.org">Apache</a> as a proxy:</p>
+<pre><code class="lang-text"><span class="title">Timeout</span> <span class="number">1800</span>
+ProxyTimeout <span class="number">1800</span></code></pre>
+<p>Or with <a href="http://nginx.org">Nginx</a>:</p>
+<pre><code class="lang-text"><span class="title">send_timeout</span> <span class="number">1800</span>;
+<span class="title">proxy_send_timeout</span> <span class="number">1800</span>;</code></pre>
+<h4>Secure Public Hooks</h4>
+<p>If your web hooks are exposed on a public IP, you are likely to want to secure
+them, e.g.: using HTTPS and an authentication credential like an API key.</p>
+<p>It&#39;s also worth noting that you may need to turn off <a href="http://en.wikipedia.org/wiki/Cross-site_request_forgery#Prevention">CSRF validation</a>.</p>
+<h2 id='support'>Support</h2 id='support'>
+<p>Raise <a href="https://github.com/thruflo/torque/issues">bugs / issues on GitHub</a>.</p>
+
+  </div>
+</div>
+</body>
+</html>
