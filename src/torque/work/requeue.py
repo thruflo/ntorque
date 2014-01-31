@@ -26,9 +26,10 @@ class RequeuePoller(object):
       function can periodically check to exit.
     """
     
-    def __init__(self, redis, channel, interval=20, **kwargs):
+    def __init__(self, redis, channel, delay=0.001, interval=10, **kwargs):
         self.redis = redis
         self.channel = channel
+        self.delay = delay
         self.interval = interval
         self.get_tasks = kwargs.get('get_tasks', model.GetDueTasks())
         self.logger = kwargs.get('logger', logger)
