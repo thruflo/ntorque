@@ -79,7 +79,7 @@ class CreateTask(object):
         # Use it to decode the body to a unicode string.
         body = request.body.decode(charset)
         
-        logger.critical(('request.headers', request.headers))
+        print 'request.headers', request.headers
         
         # Extract any headers to pass through.
         headers = {}
@@ -89,7 +89,7 @@ class CreateTask(object):
                 headers[k] = value
         headers_json = json.dumps(headers)
         
-        logger.critical(('headers_json', headers_json))
+        print 'headers_json', headers_json
         
         # Create, save and return.
         task = self.task_cls(app=app, body=body, charset=charset,

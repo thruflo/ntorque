@@ -51,9 +51,9 @@ class EnqueTask(object):
         request = self.request
         settings = request.registry.settings
         
-        logger.critical('EnqueTask.__call__')
-        logger.critical(('request.headers', request.headers))
-        logger.critical(('request.environ', request.environ))
+        print 'EnqueTask.__call__'
+        print 'request.headers', request.headers
+        print 'request.environ', request.environ
         
         # Validate.
         url = request.GET.get('url', None)
