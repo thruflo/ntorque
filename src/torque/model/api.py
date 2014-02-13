@@ -79,8 +79,6 @@ class CreateTask(object):
         # Use it to decode the body to a unicode string.
         body = request.body.decode(charset)
         
-        print 'request.headers.items()', request.headers.items()
-        
         # Extract any headers to pass through.
         headers = {}
         for key, value in request.headers.items():
@@ -88,8 +86,6 @@ class CreateTask(object):
                 k = key[len(self.proxy_header_prefix):]
                 headers[k] = value
         headers_json = json.dumps(headers)
-        
-        print 'headers_json', headers_json
         
         # Create, save and return.
         task = self.task_cls(app=app, body=body, charset=charset,
