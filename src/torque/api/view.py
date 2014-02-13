@@ -51,6 +51,10 @@ class EnqueTask(object):
         request = self.request
         settings = request.registry.settings
         
+        logger.warn('EnqueTask.__call__')
+        logger.warn(('request.headers', request.headers))
+        logger.warn(('request.environ', request.environ))
+        
         # Validate.
         url = request.GET.get('url', None)
         has_valid_url = url and self.valid_url.match(url)
