@@ -84,7 +84,7 @@ class CreateTask(object):
         # Extract any headers to pass through.
         headers = {}
         for key, value in request.headers.items():
-            if key.startswith(self.proxy_header_prefix):
+            if key.lower().startswith(self.proxy_header_prefix.lower()):
                 k = key[len(self.proxy_header_prefix):]
                 headers[k] = value
         headers_json = json.dumps(headers)
