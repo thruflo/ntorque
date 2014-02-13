@@ -79,7 +79,7 @@ class CreateTask(object):
         # Use it to decode the body to a unicode string.
         body = request.body.decode(charset)
         
-        print 'request.headers', request.headers
+        print 'request.headers.items()', request.headers.items()
         
         # Extract any headers to pass through.
         headers = {}
