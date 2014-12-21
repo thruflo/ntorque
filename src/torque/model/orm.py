@@ -147,7 +147,7 @@ class LifeCycleMixin(object):
 class Application(Base, BaseMixin, LifeCycleMixin):
     """Encapsulate an application."""
     
-    __tablename__ = 'applications'
+    __tablename__ = 'torque_applications'
     
     name = Column(Unicode(96), nullable=False)
 
@@ -155,7 +155,7 @@ class Application(Base, BaseMixin, LifeCycleMixin):
 class APIKey(Base, BaseMixin, LifeCycleMixin):
     """Encapsulate an api key used to authenticate an application."""
     
-    __tablename__ = 'api_keys'
+    __tablename__ = 'torque_api_keys'
     __table_args__ = (
         Index('ix_api_keys', 'is_active', 'is_deleted', 'value'),
     )
@@ -172,7 +172,7 @@ class APIKey(Base, BaseMixin, LifeCycleMixin):
 class Task(Base, BaseMixin):
     """Encapsulate a task."""
     
-    __tablename__ = 'tasks'
+    __tablename__ = 'torque_tasks'
     
     # Implemented during traversal to grant ``self.app`` access.
     __acl__ = NotImplemented
@@ -202,7 +202,7 @@ class Task(Base, BaseMixin):
     due = Column(DateTime, default=next_due, onupdate=next_due, nullable=False)
     
     # Is it completed or not?
-    status = Column(Enum(*TASK_STATUSES.values(), name='task_statuses'),
+    status = Column(Enum(*TASK_STATUSES.values(), name='torque_task_statuses'),
             default=next_status, onupdate=next_status, index=True,
             nullable=False)
     
