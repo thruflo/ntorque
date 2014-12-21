@@ -16,3 +16,4 @@ before_script:
 
 script:
   - "nosetests --with-doctest ntorque"
+
