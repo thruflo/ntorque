@@ -9,13 +9,10 @@ services:
   - redis-server
 
 install:
-  - "pip install setuptools_git"
-  - "pip install -r requirements.txt"
-  - "pip install ."
+  - "bash pip_install.sh"
 
 before_script:
   - "psql -c 'create database ntorque_test;' -U postgres"
 
 script:
   - "nosetests --with-doctest ntorque"
-

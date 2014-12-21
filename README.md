@@ -190,9 +190,7 @@ different length of tasks. Simple -- once you know how the system works.
 
 Clone the repo, install the Python app using:
 
-    pip install setuptools_git
-    pip install -r requirements.txt
-    pip install .
+    bash pip_install.sh
 
 You need Redis and Postgres running. If necessary, create the database:
 

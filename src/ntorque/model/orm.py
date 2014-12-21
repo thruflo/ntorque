@@ -161,7 +161,7 @@ class APIKey(Base, BaseMixin, LifeCycleMixin):
     )
     
     # Belongs to an ``Application``.
-    app_id = Column(Integer, ForeignKey('applications.id'), nullable=False)
+    app_id = Column(Integer, ForeignKey('ntorque_applications.id'), nullable=False)
     app = orm.relationship(Application, backref=orm.backref('api_keys',
             cascade="all, delete-orphan", single_parent=True))
     
@@ -187,7 +187,7 @@ class Task(Base, BaseMixin):
     
     
     # Can belong to an ``Application``.
-    app_id = Column(Integer, ForeignKey('applications.id'))
+    app_id = Column(Integer, ForeignKey('ntorque_applications.id'))
     app = orm.relationship(Application, backref=orm.backref('tasks',
             cascade="all, delete-orphan", single_parent=True))
     
