@@ -1,7 +1,7 @@
 
-# Torque - web hook task queue
+# nTorque - web hook task queue
 
-[Torque][] is a [task](http://www.celeryproject.org)
+[nTorque][] is a [task](http://www.celeryproject.org)
 [queue](https://github.com/resque/resque) service that uses [web hooks][].
 It is free, open source software [released into the public domain][] that
 you can use from any programming language (that speaks HTTP) to queue
@@ -14,18 +14,18 @@ import requests
 params = {'url': 'http://example.com/myhooks/send_email'}
 data = {'user_id': 1234}
 
-endpoint = os.environ.get('TORQUE_URL')
+endpoint = os.environ.get('NTORQUE_URL')
 response = requests.post(endpoint, data=data, params=params)
 ```
 
-[Torque]: http://documentup.com/thruflo/torque
+[nTorque]: http://documentup.com/thruflo/ntorque
 [web hooks]: http://timothyfitz.com/2009/02/09/what-webhooks-are-and-why-you-should-care/
 [released into the public domain]: http://unlicense.org/UNLICENSE
 
 
 ## Rationale
 
-Torque is designed to be a good solution when you need more reliability than
+nTorque is designed to be a good solution when you need more reliability than
 fire-and-forget but you don't need an [AMPQ][] / [ESB][] sledgehammer to crack
 your "do this later" nut.
 
@@ -43,7 +43,7 @@ Because it uses web hooks, you can:
 
 ## Functionality
 
-Torque provides the following endpoints:
+nTorque provides the following endpoints:
 
 * `POST /` to enqueue a task
 * `GET /tasks/:id` to view task status
@@ -59,7 +59,7 @@ And the following features:
 
 ## Implementation
 
-Torque is a Python application comprising of a web application and one or more
+nTorque is a Python application comprising of a web application and one or more
 worker processes. These use a [PostgreSQL][] database to persist tasks and a
 [Redis][] database as a notification channel.
 
@@ -79,7 +79,7 @@ worker processes. These use a [PostgreSQL][] database to persist tasks and a
                             |Redis   |   |Worker  |  |  |Web hook |
           |                 +--------+   |--------|     |---------|
                                |         |- POST  |+-|->|- perform|
-          | Torque             +-blpop-> |  data  |     |  task   |
+          | nTorque            +-blpop-> |  data  |     |  task   |
                                          +--------+  |  +---------+
 </code></pre>
 
@@ -97,18 +97,18 @@ a configurable time period.
 
 ## Algorithm
 
-The real crux of Torque is a trade-off between request timeout and retry delay.
+The real crux of nTorque is a trade-off between request timeout and retry delay.
 It's worth understanding this before deploying -- and how to simply mitigate
 it by a) specifying an appropriate default timeout and b) overriding this as
 necessary on a task by task basis.
 
-Like [RQ][] and [Resque][], Torque uses Redis as a push messaging channel. A
+Like [RQ][] and [Resque][], nTorque uses Redis as a push messaging channel. A
 request comes in, a notification is `rpush`d onto a channel and `blpop`d off.
 This means that tasks are executed immediately, with a nice evented / push
 notification pattern.
 
-Unlike [RQ][] and [Resque][], Torque doesn't trust Redis as a persistence layer.
-Instead, it relies on good-old-fashioned PostgreSQL: the first thing Torque does
+Unlike [RQ][] and [Resque][], nTorque doesn't trust Redis as a persistence layer.
+Instead, it relies on good-old-fashioned PostgreSQL: the first thing nTorque does
 when a new task arrives is write it to disk (with a due date and a retry count).
 
 Now, when the consumer receives the push notification from Redis, it reads the
@@ -117,11 +117,11 @@ task's webhook url. In most cases, this request will succeed, the task will
 be marked as completed and no more needs to be done. However, this won't happen
 *every time* as the process is highly vulnerable to network errors.
 
-The Torque process can fall over. Redis can fall over. The webhook request can
+The nTorque process can fall over. Redis can fall over. The webhook request can
 encounter any number of transient errors. The longer the web hook request takes
 to return, the more chance there is something will go wrong.
 
-Because of these risks, Torque explicitly refuses to rely on either the Redis
+Because of these risks, nTorque explicitly refuses to rely on either the Redis
 notification channel or the web hook response as the source of truth&trade;
 about a task's status -- whether it has been performed successfully or not.
 Instead, the single source of truth is, predictably enough, the PostgreSQL
@@ -174,7 +174,7 @@ Short retry times may result in long-running tasks hammering your server.
 Higher timeouts may delay simpler tasks being performed.
 
 The good news, of course, is that you don't have to rely on a one-size fits all
-configuration value: `TORQUE_DEFAULT_TIMEOUT`. You can also override the web
+configuration value: `NTORQUE_DEFAULT_TIMEOUT`. You can also override the web
 hook request timeout on a task by task basis, via the `timeout` query parameter.
 So, after all this, the solution is to set an appropriate timeout for
 different length of tasks. Simple -- once you know how the system works.
@@ -196,7 +196,7 @@ Clone the repo, install the Python app using:
 
 You need Redis and Postgres running. If necessary, create the database:
 
-    createdb -T template0 -E UTF8 torque
+    createdb -T template0 -E UTF8 ntorque
 
 If you like, install Foreman, to run the multiple processes, using:
 
@@ -223,39 +223,39 @@ migrations and it should just work.
 
 Algorithm / Behaviour:
 
-* `TORQUE_BACKOFF`: `exponential` (default) or `linear`
-* `TORQUE_CLEANUP_AFTER_DAYS`: how many days to leave tasks in the db for, defaults
+* `NTORQUE_BACKOFF`: `exponential` (default) or `linear`
+* `NTORQUE_CLEANUP_AFTER_DAYS`: how many days to leave tasks in the db for, defaults
   to `7`
-* `TORQUE_DEFAULT_TIMEOUT`: how long, in seconds, to wait before treating a web
+* `NTORQUE_DEFAULT_TIMEOUT`: how long, in seconds, to wait before treating a web
   hook request as having failed -- defaults to `60` see the algorithm section
   above for details
-* `TORQUE_MIN_DUE_DELAY`: minimum delay before retrying -- don't set any lower
+* `NTORQUE_MIN_DUE_DELAY`: minimum delay before retrying -- don't set any lower
   than `2`
-* `TORQUE_MAX_DUE_DELAY`: maximum retry delay -- defaults to `7200` but you
-  should make sure its longer than `TORQUE_DEFAULT_TIMEOUT`
-* `TORQUE_MAX_RETRIES`: how many attempts before giving up on a task -- defaults
+* `NTORQUE_MAX_DUE_DELAY`: maximum retry delay -- defaults to `7200` but you
+  should make sure its longer than `NTORQUE_DEFAULT_TIMEOUT`
+* `NTORQUE_MAX_RETRIES`: how many attempts before giving up on a task -- defaults
   to `36`
 
 Deployment:
 
-* `TORQUE_AUTHENTICATE`: whether to require authentication; defaults to `False`
+* `NTORQUE_AUTHENTICATE`: whether to require authentication; defaults to `False`
   -- see authentication section in Usage below
-* `TORQUE_ENABLE_HSTS`: set this to `True` if you're using https
+* `NTORQUE_ENABLE_HSTS`: set this to `True` if you're using https
 * `HSTS_PROTOCOL_HEADER`: set this to, e.g.: `X-Forwarded-Proto` if you're running
   behind an https proxy frontend
 * `MODE`: defaults to `development`, set to `production` when you deploy for real
 
 Redis:
 
-* `TORQUE_REDIS_CHANNEL`: name of your Redis list used as a notification channel;
-  defaults to `torque`
+* `NTORQUE_REDIS_CHANNEL`: name of your Redis list used as a notification channel;
+  defaults to `ntorque`
 * `REDIS_URL`, etc.: see [pyramid_redis][] for details on how to configure your
   Redis connection
 
 Database:
 
 * `DATABASE_URL` etc.: your [database configuration string][], defaults
-  to `postgresql:///torque`
+  to `postgresql:///ntorque`
 * other db config options are `DATABASE_MAX_OVERFLOW`, `DATABASE_POOL_SIZE` and
   `DATABASE_POOL_RECYCLE`
 
@@ -266,18 +266,18 @@ Database:
 
 ### Authentication
 
-If you set `TORQUE_AUTHENTICATE` to `True` then you need to create at least one
+If you set `NTORQUE_AUTHENTICATE` to `True` then you need to create at least one
 application (e.g.: using the `alembic/scripts/create_application.py` script) and
-provide its api key in the `TORQUE_API_KEY` header when enqueuing a task.
+provide its api key in the `NTORQUE_API_KEY` header when enqueuing a task.
 
 ### `POST /`
 
-To enqueue a task, make a POST request to the root path of your Torque
+To enqueue a task, make a POST request to the root path of your nTorque
 installation.
 
 **Required**:
 
-* a `url` query parameter; this is the url to your web hook that you want Torque
+* a `url` query parameter; this is the url to your web hook that you want nTorque
   to call to perform your task
 
 **Optional**:
@@ -295,8 +295,8 @@ request to your web hook.
 
 Aside from the content type, length and charset headers, derived from your
 request, you can specify headers to pass through to your web hook, by prefixing
-the header name with `TORQUE-PASSTHROUGH-`. So, for example, to pass through
-a `FOO: Bar` header, you would provide `TORQUE-PASSTHROUGH-FOO: Bar` in your
+the header name with `NTORQUE-PASSTHROUGH-`. So, for example, to pass through
+a `FOO: Bar` header, you would provide `NTORQUE-PASSTHROUGH-FOO: Bar` in your
 request headers.
 
 **Response**:
@@ -311,7 +311,7 @@ Returns a JSON data dict with status information about a task.
 
 ## Pro-Tips
 
-Torque is a system for reliably calling web hook task handlers: not for
+nTorque is a system for reliably calling web hook task handlers: not for
 implementing them. You are responsible for implementing and exposing your own
 web hooks. In most languages and frameworks this is very simple, e.g.: in Ruby
 using [Sinatra][]:
@@ -338,7 +338,7 @@ Key things to bear in mind are:
 #### Return 200 OK
 
 After successfully performing their task, your web hooks are expected to return
-an HTTP response with a `200` status code. If not, Torque will keep retrying
+an HTTP response with a `200` status code. If not, nTorque will keep retrying
 the task.
 
 #### Avoid Timeouts
@@ -376,4 +376,4 @@ It's also worth noting that you may need to turn off [CSRF validation][].
 
 ## Support
 
-Raise [bugs / issues on GitHub](https://github.com/thruflo/torque/issues).
+Raise [bugs / issues on GitHub](https://github.com/thruflo/ntorque/issues).

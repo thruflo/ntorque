@@ -17,7 +17,7 @@ from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
 from pyramid_redis.hooks import RedisFactory
-from torque import model
+from ntorque import model
 from .main import Bootstrap
 
 class RequeuePoller(object):
@@ -90,7 +90,7 @@ class ConsoleScript(object):
         # Unpack the redis client and input channels.
         settings = config.registry.settings
         redis_client = self.get_redis(settings, registry=config.registry)
-        channel = settings.get('torque.redis_channel')
+        channel = settings.get('ntorque.redis_channel')
         
         # Instantiate and start the consumer.
         poller = self.requeue_cls(redis_client, channel)

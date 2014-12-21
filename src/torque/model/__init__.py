@@ -19,7 +19,7 @@ DEFAULTS = {
     'max_overflow': os.environ.get('DATABASE_MAX_OVERFLOW', 3),
     'pool_size': os.environ.get('DATABASE_POOL_SIZE', 3),
     'pool_recycle': os.environ.get('DATABASE_POOL_RECYCLE', 300),
-    'url': os.environ.get('DATABASE_URL', 'postgresql:///torque'),
+    'url': os.environ.get('DATABASE_URL', 'postgresql:///ntorque'),
 }
 
 class IncludeMe(object):

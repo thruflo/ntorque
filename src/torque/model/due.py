@@ -16,14 +16,14 @@ import datetime
 import os
 import transaction
 
-from torque import backoff
+from ntorque import backoff
 from . import constants
 
 DEFAULT_SETTINGS = {
-    'backoff': os.environ.get('TORQUE_BACKOFF', u'exponential'),
-    'min_delay': os.environ.get('TORQUE_MIN_DUE_DELAY', 2),
-    'max_delay': os.environ.get('TORQUE_MAX_DUE_DELAY', 7200),
-    'max_retries': os.environ.get('TORQUE_MAX_RETRIES', 36),
+    'backoff': os.environ.get('NTORQUE_BACKOFF', u'exponential'),
+    'min_delay': os.environ.get('NTORQUE_MIN_DUE_DELAY', 2),
+    'max_delay': os.environ.get('NTORQUE_MAX_DUE_DELAY', 7200),
+    'max_retries': os.environ.get('NTORQUE_MAX_RETRIES', 36),
 }
 
 class DueFactory(object):

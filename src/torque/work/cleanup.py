@@ -14,7 +14,7 @@ from datetime import timedelta
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from torque import model
+from ntorque import model
 from .main import Bootstrap
 
 class Cleaner(object):
@@ -65,7 +65,7 @@ class ConsoleScript(object):
         
         # Unpack the redis client and input channels.
         settings = config.registry.settings
-        days = int(settings.get('torque.cleanup_after_days'))
+        days = int(settings.get('ntorque.cleanup_after_days'))
         
         # Instantiate and start the consumer.
         cleaner = self.cleaner_cls(days)

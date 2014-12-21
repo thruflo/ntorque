@@ -17,7 +17,7 @@ import time
 from redis.exceptions import RedisError
 from pyramid_redis.hooks import RedisFactory
 
-from torque import model
+from ntorque import model
 
 from .main import Bootstrap
 from .perform import TaskPerformer
@@ -91,7 +91,7 @@ class ConsoleScript(object):
         # Unpack the redis client and input channels.
         settings = config.get_settings()
         redis_client = self.get_redis(settings, registry=config.registry)
-        input_channels = settings.get('torque.redis_channel').strip().split()
+        input_channels = settings.get('ntorque.redis_channel').strip().split()
         
         # Instantiate and start the consumer.
         consumer = self.consumer_cls(redis_client, input_channels)

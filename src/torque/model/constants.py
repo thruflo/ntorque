@@ -4,7 +4,7 @@
 
 DEFAULT_CHARSET = u'utf8'
 DEFAULT_ENCTYPE = u'application/x-www-form-urlencoded'
-PROXY_HEADER_PREFIX = u'TORQUE-PASSTHROUGH-'
+PROXY_HEADER_PREFIX = u'NTORQUE-PASSTHROUGH-'
 TASK_STATUSES = {
     'completed': u'COMPLETED',
     'failed': u'FAILED',

@@ -16,8 +16,8 @@ import requests
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from torque import backoff
-from torque import model
+from ntorque import backoff
+from ntorque import model
 
 class TaskPerformer(object):
     def __init__(self, **kwargs):

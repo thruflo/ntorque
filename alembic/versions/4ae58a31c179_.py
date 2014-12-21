@@ -13,7 +13,7 @@ from alembic import op
 import sqlalchemy as sa
 
 def upgrade():
-    op.create_table('torque_applications',
+    op.create_table('ntorque_applications',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('c', sa.DateTime(), nullable=False),
         sa.Column('m', sa.DateTime(), nullable=False),
@@ -27,7 +27,7 @@ def upgrade():
         sa.Column('name', sa.Unicode(length=96), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('torque_tasks',
+    op.create_table('ntorque_tasks',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('c', sa.DateTime(), nullable=False),
         sa.Column('m', sa.DateTime(), nullable=False),
@@ -37,16 +37,16 @@ def upgrade():
         sa.Column('timeout', sa.Integer(), nullable=False),
         sa.Column('due', sa.DateTime(), nullable=False),
         sa.Column('status', sa.Enum(u'FAILED', u'COMPLETED', u'PENDING',
-                name='torque_task_statuses'), nullable=False),
+                name='ntorque_task_statuses'), nullable=False),
         sa.Column('url', sa.Unicode(length=256), nullable=False),
         sa.Column('charset', sa.Unicode(length=24), nullable=False),
         sa.Column('enctype', sa.Unicode(length=256), nullable=False),
         sa.Column('headers', sa.UnicodeText(), nullable=True),
         sa.Column('body', sa.UnicodeText(), nullable=True),
-        sa.ForeignKeyConstraint(['app_id'], ['torque_applications.id'], ),
+        sa.ForeignKeyConstraint(['app_id'], ['ntorque_applications.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('torque_api_keys',
+    op.create_table('ntorque_api_keys',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('c', sa.DateTime(), nullable=False),
         sa.Column('m', sa.DateTime(), nullable=False),
@@ -59,13 +59,13 @@ def upgrade():
         sa.Column('undeleted', sa.DateTime(), nullable=True),
         sa.Column('app_id', sa.Integer(), nullable=False),
         sa.Column('value', sa.Unicode(length=40), nullable=False),
-        sa.ForeignKeyConstraint(['app_id'], ['torque_applications.id'], ),
+        sa.ForeignKeyConstraint(['app_id'], ['ntorque_applications.id'], ),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('value')
     )
 
 def downgrade():
-    op.drop_table('torque_api_keys')
-    op.drop_table('torque_tasks')
-    op.drop_table('torque_applications')
+    op.drop_table('ntorque_api_keys')
+    op.drop_table('ntorque_tasks')
+    op.drop_table('ntorque_applications')
 

@@ -20,17 +20,17 @@ from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.security import unauthenticated_userid
 from pyramid.settings import asbool
 
-from torque import model
+from ntorque import model
 
 VALID_API_KEY = re.compile(r'^\w{40}$')
 
 @implementer(IAuthenticationPolicy)
 class AuthenticationPolicy(CallbackAuthenticationPolicy):
     """A Pyramid authentication policy which obtains credential data from the
-      ``request.headers['TORQUE_API_KEY']``.
+      ``request.headers['NTORQUE_API_KEY']``.
     """
     
-    def __init__(self, header_key='TORQUE_API_KEY', **kwargs):
+    def __init__(self, header_key='NTORQUE_API_KEY', **kwargs):
         self.header_key = header_key
         self.valid_key = kwargs.get('valid_key', VALID_API_KEY)
     

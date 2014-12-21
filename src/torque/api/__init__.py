@@ -15,17 +15,17 @@ from pyramid.authorization import ACLAuthorizationPolicy
 from pyramid.config import Configurator
 from pyramid.settings import asbool
 
-from torque import model
+from ntorque import model
 
 from . import auth
 from . import tree
 
 DEFAULTS = {
-    'authenticate': os.environ.get('TORQUE_AUTHENTICATE', True),
-    'default_timeout': os.environ.get('TORQUE_DEFAULT_TIMEOUT', 60),
-    'enable_hsts': os.environ.get('TORQUE_ENABLE_HSTS', False),
+    'authenticate': os.environ.get('NTORQUE_AUTHENTICATE', True),
+    'default_timeout': os.environ.get('NTORQUE_DEFAULT_TIMEOUT', 60),
+    'enable_hsts': os.environ.get('NTORQUE_ENABLE_HSTS', False),
     'mode': os.environ.get('MODE', 'development'),
-    'redis_channel': os.environ.get('TORQUE_REDIS_CHANNEL', 'torque'),
+    'redis_channel': os.environ.get('NTORQUE_REDIS_CHANNEL', 'ntorque'),
 }
 
 class IncludeMe(object):
@@ -45,10 +45,10 @@ class IncludeMe(object):
         # Unpack settings.
         settings = config.get_settings()
         for key, value in self.default_settings.items():
-            settings.setdefault('torque.{0}'.format(key), value)
+            settings.setdefault('ntorque.{0}'.format(key), value)
         
         # Configure db access.
-        config.include('torque.model')
+        config.include('ntorque.model')
         
         # Configure redis.
         config.include('pyramid_redis')
@@ -57,12 +57,12 @@ class IncludeMe(object):
         config.include('pyramid_tm')
         
         # If configured, enforce HSTS.
-        should_enable_hsts = settings.get('torque.enable_hsts')
+        should_enable_hsts = settings.get('ntorque.enable_hsts')
         if asbool(should_enable_hsts):
             config.include('pyramid_hsts')
         
         # If configured, enforce authentication.
-        should_authenticate = settings.get('torque.authenticate')
+        should_authenticate = settings.get('ntorque.authenticate')
         if asbool(should_authenticate):
             config.set_authorization_policy(self.authz_policy)
             config.set_authentication_policy(self.authn_policy)

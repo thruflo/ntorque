@@ -14,9 +14,9 @@ except ImportError: #pragma: no cover
 
 import os
 
-from torque import api
-from torque import model
-from torque.work import main as work
+from ntorque import api
+from ntorque import model
+from ntorque.work import main as work
 
 from pyramid_redis import hooks as redis_hooks
 
@@ -24,9 +24,9 @@ TEST_SETTINGS = {
     'redis.db': 5,
     'redis.url': 'redis://localhost:6379',
     'sqlalchemy.url': os.environ.get('TEST_DATABASE_URL',
-            u'postgresql:///torque_test'),
-    'torque.mode': 'testing',
-    'torque.redis_channel': 'torque:testing',
+            u'postgresql:///ntorque_test'),
+    'ntorque.mode': 'testing',
+    'ntorque.redis_channel': 'ntorque:testing',
 }
 
 class TestAppFactory(object):

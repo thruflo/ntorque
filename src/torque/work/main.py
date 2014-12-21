@@ -21,12 +21,12 @@ logging.basicConfig()
 
 import os
 from pyramid.config import Configurator
-from torque import model
+from ntorque import model
 
 DEFAULTS = {
     'mode': os.environ.get('MODE', 'development'),
-    'redis_channel': os.environ.get('TORQUE_REDIS_CHANNEL', 'torque'),
-    'cleanup_after_days': os.environ.get('TORQUE_CLEANUP_AFTER_DAYS', 7),
+    'redis_channel': os.environ.get('NTORQUE_REDIS_CHANNEL', 'ntorque'),
+    'cleanup_after_days': os.environ.get('NTORQUE_CLEANUP_AFTER_DAYS', 7),
 }
 
 class Bootstrap(object):
@@ -46,10 +46,10 @@ class Bootstrap(object):
         config = self.configurator_cls(**kwargs)
         settings = config.get_settings()
         for key, value in self.default_settings.items():
-            settings.setdefault('torque.{0}'.format(key), value)
+            settings.setdefault('ntorque.{0}'.format(key), value)
         
         # Configure redis and the db connection.
-        config.include('torque.model')
+        config.include('ntorque.model')
         config.include('pyramid_redis')
         config.commit()
         

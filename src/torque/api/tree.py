@@ -24,8 +24,8 @@ logger.warn(
 import re
 VALID_INT = re.compile(r'^[0-9]+$')
 
-from torque import model
-from torque import root
+from ntorque import model
+from ntorque import root
 
 class APIRoot(root.TraversalRoot):
     """Support ``tasks`` traversal."""

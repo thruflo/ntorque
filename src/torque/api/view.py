@@ -15,7 +15,7 @@ from pyramid import httpexceptions
 from pyramid.security import NO_PERMISSION_REQUIRED
 from pyramid.view import view_config
 
-from torque import model
+from ntorque import model
 from . import tree
 
 # From `colander.url`.
@@ -56,7 +56,7 @@ class EnqueTask(object):
         has_valid_url = url and self.valid_url.match(url)
         if not has_valid_url:
             raise self.bad_request(u'You must provide a valid web hook URL.')
-        default_timeout = settings.get('torque.default_timeout')
+        default_timeout = settings.get('ntorque.default_timeout')
         raw_timeout = request.GET.get('timeout', default_timeout)
         try:
             timeout = int(raw_timeout)
@@ -67,7 +67,7 @@ class EnqueTask(object):
         task = self.create_task(request.application, url, timeout, request)
         
         # Notify.
-        channel = settings['torque.redis_channel']
+        channel = settings['ntorque.redis_channel']
         instruction = '{0}:0'.format(task.id)
         request.redis.rpush(channel, instruction)
         

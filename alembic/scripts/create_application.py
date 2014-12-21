@@ -6,10 +6,10 @@ import argparse
 import os
 import transaction
 
-from torque.model import CreateApplication
-from torque.model import GetActiveKey
+from ntorque.model import CreateApplication
+from ntorque.model import GetActiveKey
 
-from torque.work.main import Bootstrap
+from ntorque.work.main import Bootstrap
 
 def parse_args():
     """Parse the command line arguments."""

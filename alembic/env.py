@@ -8,7 +8,7 @@ import os
 
 from alembic import context
 from sqlalchemy import create_engine
-from torque.model import Base
+from ntorque.model import Base
 
 # Get a database connection.
 engine = create_engine(os.environ['DATABASE_URL'])

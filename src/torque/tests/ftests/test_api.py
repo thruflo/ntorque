@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Functional tests for the torque API."""
+"""Functional tests for the ntorque API."""
 
 import logging
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ import transaction
 import urllib
 import unittest
 
-from torque.tests import boilerplate
+from ntorque.tests import boilerplate
 
 class TestRootEndpoint(unittest.TestCase):
     """Test the ``POST /`` endpoint to create tasks."""
@@ -37,14 +37,14 @@ class TestRootEndpoint(unittest.TestCase):
     def test_post_without_authentication(self):
         """POST should not be forbidden if told not to authenticate."""
         
-        settings = {'torque.authenticate': False}
+        settings = {'ntorque.authenticate': False}
         api = self.app_factory(**settings)
         r = api.post('/', status=400)
     
     def test_post_authenticated(self):
         """Authenticated POST should not be forbidden."""
         
-        from torque import model
+        from ntorque import model
         create_app = model.CreateApplication()
         get_key = model.GetActiveKey()
         
@@ -57,12 +57,12 @@ class TestRootEndpoint(unittest.TestCase):
             api_key = get_key(app).value.encode('utf-8')
         
         # Now the request should make it through auth to fail on validation.
-        r = api.post('/', headers={'TORQUE_API_KEY': api_key}, status=400)
+        r = api.post('/', headers={'NTORQUE_API_KEY': api_key}, status=400)
     
     def test_post_task(self):
         """POSTing a valid url should enque a task."""
         
-        from torque import model
+        from ntorque import model
         create_app = model.CreateApplication()
         get_key = model.GetActiveKey()
         get_task = model.LookupTask()
@@ -74,7 +74,7 @@ class TestRootEndpoint(unittest.TestCase):
         with transaction.manager:
             app = create_app(u'example')
             api_key = get_key(app).value.encode('utf-8')
-        headers={'TORQUE_API_KEY': api_key}
+        headers={'NTORQUE_API_KEY': api_key}
         
         # Invent a web hook url.
         url = u'http://example.com/hook'
@@ -95,7 +95,7 @@ class TestRootEndpoint(unittest.TestCase):
     def test_post_invalid_url(self):
         """POSTing an invalid url should not."""
         
-        from torque import model
+        from ntorque import model
         create_app = model.CreateApplication()
         get_key = model.GetActiveKey()
         
@@ -106,7 +106,7 @@ class TestRootEndpoint(unittest.TestCase):
         with transaction.manager:
             app = create_app(u'example')
             api_key = get_key(app).value.encode('utf-8')
-        headers={'TORQUE_API_KEY': api_key}
+        headers={'NTORQUE_API_KEY': api_key}
         
         # Invent an invalid web hook url.
         url = u'not a url'
@@ -118,11 +118,11 @@ class TestRootEndpoint(unittest.TestCase):
     def test_post_task_without_authentication(self):
         """POSTing without auth should enque a task with ``app==None``."""
         
-        from torque import model
+        from ntorque import model
         get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.authenticate': False}
+        settings = {'ntorque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Invent a web hook url.
@@ -144,11 +144,11 @@ class TestRootEndpoint(unittest.TestCase):
           POST body.
         """
         
-        from torque import model
+        from ntorque import model
         get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.authenticate': False}
+        settings = {'ntorque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Setup a request with form encoded latin-1.
@@ -174,11 +174,11 @@ class TestRootEndpoint(unittest.TestCase):
     def test_post_task_with_json_body(self):
         """Test enqueing a task with a JSON body and UTF-8 charset."""
         
-        from torque import model
+        from ntorque import model
         get_task = model.LookupTask()
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.authenticate': False}
+        settings = {'ntorque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Setup a request with form encoded latin-1.
@@ -214,7 +214,7 @@ class TestGetCreatedTaskLocation(unittest.TestCase):
         """The location returned after enquing a task should be gettable."""
         
         # Create the wsgi app, which also sets up the db.
-        settings = {'torque.authenticate': False}
+        settings = {'ntorque.authenticate': False}
         api = self.app_factory(**settings)
         
         # Invent a web hook url.
@@ -233,7 +233,7 @@ class TestGetCreatedTaskLocation(unittest.TestCase):
           that created it.
         """
         
-        from torque import model
+        from ntorque import model
         create_app = model.CreateApplication()
         get_key = model.GetActiveKey()
         get_task = model.LookupTask()
@@ -245,7 +245,7 @@ class TestGetCreatedTaskLocation(unittest.TestCase):
         with transaction.manager:
             app = create_app(u'example')
             api_key = get_key(app).value.encode('utf-8')
-        headers={'TORQUE_API_KEY': api_key}
+        headers={'NTORQUE_API_KEY': api_key}
         
         # Invent a web hook url.
         url = u'http://example.com/hook'
@@ -274,7 +274,7 @@ class TestCreatedTaskNotification(unittest.TestCase):
         
         api = self.app_factory()
         settings = self.app_factory.settings
-        channel = settings.get('torque.redis_channel')
+        channel = settings.get('ntorque.redis_channel')
         redis = self.app_factory.redis_client
         
         # Enquing the task should respond with 201 and the location header.
@@ -284,9 +284,9 @@ class TestCreatedTaskNotification(unittest.TestCase):
         """After creating a task, its `id:retry_count` should be in redis."""
         
         # Setup.
-        api = self.app_factory(**{'torque.authenticate': False})
+        api = self.app_factory(**{'ntorque.authenticate': False})
         settings = self.app_factory.settings
-        channel = settings.get('torque.redis_channel')
+        channel = settings.get('ntorque.redis_channel')
         redis = self.app_factory.redis_client
         
         # Enque the task.
@@ -306,9 +306,9 @@ class TestCreatedTaskNotification(unittest.TestCase):
         """Task notifications should be added to the tail of the channel list."""
         
         # Setup.
-        api = self.app_factory(**{'torque.authenticate': False})
+        api = self.app_factory(**{'ntorque.authenticate': False})
         settings = self.app_factory.settings
-        channel = settings.get('torque.redis_channel')
+        channel = settings.get('ntorque.redis_channel')
         redis = self.app_factory.redis_client
         
         # Enque two tasks.

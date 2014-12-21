@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Functional tests for the ``torque.work`` package."""
+"""Functional tests for the ``ntorque.work`` package."""
 
 import logging
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ import transaction
 import urllib
 import unittest
 
-from torque.tests import boilerplate
+from ntorque.tests import boilerplate
 
 class TestChannelConsumer(unittest.TestCase):
     """Test consuming instructions from the redis channel."""
@@ -41,7 +41,7 @@ class TestTaskPerformer(unittest.TestCase):
     def test_performing_task_miss(self):
         """Performing a task that doesn't exist returns None."""
         
-        from torque.work.perform import TaskPerformer
+        from ntorque.work.perform import TaskPerformer
         performer = TaskPerformer()
         
         status = performer('1234:0', None)
@@ -56,10 +56,10 @@ class TestTaskPerformer(unittest.TestCase):
         flag = Event()
         flag.set()
         
-        from torque.model import TASK_STATUSES
-        from torque.model import CreateTask
-        from torque.model import Session
-        from torque.work.perform import TaskPerformer
+        from ntorque.model import TASK_STATUSES
+        from ntorque.model import CreateTask
+        from ntorque.model import Session
+        from ntorque.work.perform import TaskPerformer
         
         # Create a task.
         req = Request.blank('/')
@@ -88,10 +88,10 @@ class TestTaskPerformer(unittest.TestCase):
         flag = Event()
         flag.set()
         
-        from torque.model import TASK_STATUSES
-        from torque.model import CreateTask
-        from torque.model import Session
-        from torque.work.perform import TaskPerformer
+        from ntorque.model import TASK_STATUSES
+        from ntorque.model import CreateTask
+        from ntorque.model import Session
+        from ntorque.work.perform import TaskPerformer
         
         # Create a task.
         req = Request.blank('/')
@@ -119,10 +119,10 @@ class TestTaskPerformer(unittest.TestCase):
         flag = Event()
         flag.set()
         
-        from torque.model import TASK_STATUSES
-        from torque.model import CreateTask
-        from torque.model import Session
-        from torque.work.perform import TaskPerformer
+        from ntorque.model import TASK_STATUSES
+        from ntorque.model import CreateTask
+        from ntorque.model import Session
+        from ntorque.work.perform import TaskPerformer
         
         # Create a task.
         req = Request.blank('/')
@@ -150,10 +150,10 @@ class TestTaskPerformer(unittest.TestCase):
         flag = Event()
         flag.set()
         
-        from torque.model import TASK_STATUSES
-        from torque.model import CreateTask
-        from torque.model import Session
-        from torque.work.perform import TaskPerformer
+        from ntorque.model import TASK_STATUSES
+        from ntorque.model import CreateTask
+        from ntorque.model import Session
+        from ntorque.work.perform import TaskPerformer
         
         # Create a task.
         req = Request.blank('/')
@@ -184,10 +184,10 @@ class TestTaskPerformer(unittest.TestCase):
         flag = Event()
         flag.set()
         
-        from torque.model import TASK_STATUSES
-        from torque.model import CreateTask
-        from torque.model import Session
-        from torque.work.perform import TaskPerformer
+        from ntorque.model import TASK_STATUSES
+        from ntorque.model import CreateTask
+        from ntorque.model import Session
+        from ntorque.work.perform import TaskPerformer
         
         # Create a task.
         req = Request.blank('/')

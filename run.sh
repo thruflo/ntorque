@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$MODE" = "development" ]; then
-    gunicorn --log-level=info -c gunicorn.py torque.api:main
+    gunicorn --log-level=info -c gunicorn.py ntorque.api:main
 else
-    newrelic-admin run-program gunicorn --log-level=warn -c gunicorn.py torque.api:main
+    newrelic-admin run-program gunicorn --log-level=warn -c gunicorn.py ntorque.api:main
 fi

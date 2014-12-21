@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 from pyramid import httpexceptions
 from pyramid.view import view_config
 
-from torque import model
+from ntorque import model
 from . import tree
 
 @view_config(context=tree.APIRoot)
@@ -42,7 +42,7 @@ class HTTPErrorView(object):
     def __call__(self):
         request = self.request
         settings = request.registry.settings
-        if settings.get('torque.mode') == 'development':
+        if settings.get('ntorque.mode') == 'development':
             raise
         return request.exception
     
@@ -60,7 +60,7 @@ class SystemErrorView(object):
         request = self.request
         settings = request.registry.settings
         if request.exception:
-            if settings.get('torque.mode') == 'development':
+            if settings.get('ntorque.mode') == 'development':
                 raise
             logger.error(request.exception, exc_info=True)
         return self.exc_cls()
