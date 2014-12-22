@@ -33,7 +33,7 @@ class TestAppFactory(object):
     """Callable utility that returns a testable WSGI app and manages db state."""
     
     def __init__(self, **kwargs):
-        self.app_factory = kwargs.get('app_factory', api.wsgi_app_factory)
+        self.app_factory = kwargs.get('app_factory', api.WSGIAppFactory())
         self.base = kwargs.get('base', model.Base)
         self.json_method = kwargs.get('get_json', webtest.utils.json_method)
         self.redis_factory = kwargs.get('redis_factory', redis_hooks.RedisFactory())

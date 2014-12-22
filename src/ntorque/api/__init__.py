@@ -88,7 +88,7 @@ class WSGIAppFactory(object):
         self.includeme = kwargs.get('includeme', IncludeMe())
         self.session = kwargs.get('session', model.Session)
     
-    def __call__(self, **kwargs):
+    def __call__(self, *args, **kwargs):
         """Configure and return the app, making sure to explicitly close any
           db connections opened by the thread local session.
         """
@@ -102,9 +102,6 @@ class WSGIAppFactory(object):
         
         # Return a WSGI app.
         return config.make_wsgi_app()
-    
-
-wsgi_app_factory = WSGIAppFactory()
 
 # Provide a ``main`` wsgi app entrypoint.
-main = wsgi_app_factory()
+main = WSGIAppFactory().__call__
