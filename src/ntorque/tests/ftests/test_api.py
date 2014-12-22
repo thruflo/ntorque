@@ -5,6 +5,9 @@
 import logging
 logger = logging.getLogger(__name__)
 
+from datetime import datetime
+from datetime import timedelta
+
 import json
 import transaction
 import urllib
@@ -358,5 +361,43 @@ class TestCreatedTaskNotification(unittest.TestCase):
         id2, _ = map(int, redis.lpop(channel).split(':'))
         self.assertTrue(location1.endswith(str(id1)))
         self.assertTrue(location2.endswith(str(id2)))
-    
+
+    def test_manual_push_notification(self):
+        """Test creating a task manually and then pushing a notification."""
+
+        from ntorque.model.api import TaskFactory
+        from ntorque.model.api import LookupTask
+        
+        # Setup.
+        api = self.app_factory(**{'ntorque.authenticate': False})
+        settings = self.app_factory.settings
+        channel = settings.get('ntorque.redis_channel')
+        redis = self.app_factory.redis_client
+        
+        # Manually create the task.
+        timeout = 30
+        factory = TaskFactory(None, u'http://example.com/hook', timeout, u'POST')
+        with transaction.manager:
+            task = factory()
+            task_id = task.id
+
+        # As a sanity check, let'd make sure that, when created, the task's
+        # due date is in the future -- which means we have a window of opportunity
+        # to push a notification onto the queue.
+        lookup = LookupTask()
+        task = lookup(task_id)
+        self.assertTrue(task.status == u'PENDING')
+        self.assertTrue(task.due > task.created + timedelta(seconds=timeout))
+
+        # Push a notification onto the queue.
+        path = '/tasks/{0}/push'.format(task_id)
+        r = api.post(path, status=201)
+        location = r.headers['Location']
+
+        # Its id should be in the redis channel list.
+        self.assertEquals(redis.llen(channel), 1)
+        task_id, retry_count = map(int, redis.lpop(channel).split(':'))
+        self.assertTrue(task_id == task.id)
+        self.assertTrue(retry_count is 0)
+        self.assertTrue(location.endswith(str(task_id)))
 

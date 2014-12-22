@@ -10,6 +10,8 @@ __all__ = [
     'GetDueTasks',
     'LookupApplication',
     'LookupTask',
+    'PushTaskNotification',
+    'TaskFactory',
     'TaskManager',
 ]
 
@@ -25,9 +27,12 @@ from pyramid.security import ALL_PERMISSIONS
 from pyramid.security import Allow, Deny
 from pyramid.security import Authenticated, Everyone
 
-from . import constants
+from pyramid_weblayer import tx
+
+from . import constants as c
 from . import due
 from . import orm as model
+
 
 class CreateApplication(object):
     """Create an application."""
@@ -45,27 +50,23 @@ class CreateApplication(object):
         self.session.add(app)
         self.session.flush()
         return app
-    
+
 
 class CreateTask(object):
-    """Create a task."""
-    
+    """Create a task from a ``request`` and call ``*args``."""
+
     def __init__(self, request, **kwargs):
         self.request = request
-        self.default_charset = kwargs.get('default_charset',
-                constants.DEFAULT_CHARSET)
-        self.default_enctype = kwargs.get('default_enctype',
-                constants.DEFAULT_ENCTYPE)
-        self.proxy_header_prefix = kwargs.get('proxy_header_prefix',
-                constants.PROXY_HEADER_PREFIX)
-        self.task_cls = kwargs.get('task_cls', model.Task)
-        self.session = kwargs.get('session', model.Session)
-    
-    def __call__(self, app, url, timeout, method):
-        """Create and return a task belonging to the given ``app`` using the
-          ``url`` and ``request`` provided.
+        self.factory_cls = kwargs.get('factory_cls', TaskFactory)
+        self.default_charset = kwargs.get('default_charset', c.DEFAULT_CHARSET)
+        self.default_enctype = kwargs.get('default_enctype', c.DEFAULT_ENCTYPE)
+        self.header_prefix = kwargs.get('header_prefix', c.PROXY_HEADER_PREFIX)
+
+    def __call__(self, *factory_args):
+        """Unpack ``enctype, body and headers`` from the request and then
+          pass through as args to the underlying ``CreateTask`` factory.
         """
-        
+
         # Get the content type and parse the encoding type out of it.
         request = self.request
         content_type = request.headers.get('Content-Type', None)
@@ -84,19 +85,68 @@ class CreateTask(object):
         # Extract any headers to pass through.
         headers = {}
         for key, value in request.headers.items():
-            if key.lower().startswith(self.proxy_header_prefix.lower()):
-                k = key[len(self.proxy_header_prefix):]
+            if key.lower().startswith(self.header_prefix.lower()):
+                k = key[len(self.header_prefix):]
                 headers[k] = value
+
+        # Use the underlying factory to create the task.
+        factory = self.factory_cls(*factory_args)
+        return factory(body=body, charset=charset, enctype=enctype, headers=headers)
+
+class TaskFactory(object):
+    """Create and store a task."""
+
+    def __init__(self, app, url, timeout, method, **kwargs):
+        self.app = app
+        self.url = url
+        self.timeout = timeout
+        self.method = method
+        self.task_cls = kwargs.get('task_cls', model.Task)
+        self.session = kwargs.get('session', model.Session)
+
+    def __call__(self, body=u'', headers=None, **kwargs):
+        """Create and return a task."""
+
+        # Unpack.
+        app = self.app
+        url = self.url
+        timeout = self.timeout
+        method = self.method
+
+        # Jsonify the headers.
+        if headers is None:
+            headers = {}
         headers_json = json.dumps(headers)
         
-        # Create, save and return.
-        task = self.task_cls(app=app, body=body, charset=charset,
-                enctype=enctype, headers=headers_json, method=method,
-                timeout=timeout, url=url)
+        # Create.
+        task = self.task_cls(app=app, body=body, headers=headers_json,
+                method=method, timeout=timeout, url=url, **kwargs)
+
+        # Save, flush and return.
         self.session.add(task)
         self.session.flush()
         return task
-    
+
+class PushTaskNotification(object):
+    """Add a transaction commit hook to push a task onto the redis channel."""
+
+    def __init__(self, request, **kwargs):
+        self.request = request
+        self.join_tx = kwargs.get('join_tx', tx.join_to_transaction)
+
+    def __call__(self, task):
+        """Prepare instruction and add to channel on tx commit."""
+
+        # Unpack.
+        request = self.request
+        settings = request.registry.settings
+
+        # Prepare instruction.
+        instruction = '{0}:{1}'.format(task.id, task.retry_count)
+
+        # Push onto the queue when the current transaction commits.
+        channel = settings['ntorque.redis_channel']
+        self.join_tx(request.redis.rpush, channel, instruction)
 
 
 class GetActiveKey(object):

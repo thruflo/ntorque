@@ -43,6 +43,7 @@ class EnqueTask(object):
         self.bad_request = kwargs.get('bad_request', httpexceptions.HTTPBadRequest)
         self.create_task = kwargs.get('create_task', model.CreateTask(request))
         self.default_method = kwargs.get('default_method', constants.DEFAULT_METHOD)
+        self.push_notify = kwargs.get('push_notify', model.PushTaskNotification(request))
         self.valid_int = kwargs.get('valid_int', VALID_INT)
         self.valid_methods = kwargs.get('valid_methods', constants.REQUEST_METHODS)
         self.valid_url = kwargs.get('valid_url', VALID_URL)
@@ -79,17 +80,14 @@ class EnqueTask(object):
         task = self.create_task(app, url, timeout, method)
 
         # Notify.
-        channel = settings['ntorque.redis_channel']
-        instruction = '{0}:0'.format(task.id)
-        request.redis.rpush(channel, instruction)
-        
+        self.push_notify(task)
+
         # Return a 201 response with the task url as the Location header.
         response = request.response
         response.status_int = 201
         response.headers['Location'] = request.resource_url(task)[:-1]
         return ''
     
-
 
 @view_config(context=model.Task, permission='view', request_method='GET',
         renderer='json')
@@ -109,4 +107,29 @@ class TaskStatus(object):
         # Return a 200 response with a JSON repr of the task.
         return task
     
+
+@view_config(context=model.Task, name='push', permission='view',
+        request_method='POST', renderer='json')
+class PushTask(object):
+    """``POST /tasks/task:id/push`` to push an existing task onto the redis queue."""
+
+    def __init__(self, request, **kwargs):
+        self.request = request
+        self.push_notify = kwargs.get('push_notify', model.PushTaskNotification(request))
+    
+    def __call__(self):
+        """Push the task onto the queue."""
+        
+        # Unpack.
+        request = self.request
+        task = request.context
+        
+        # Notify.
+        self.push_notify(task)
+
+        # Return a 201 response with the task url as the Location header.
+        response = request.response
+        response.status_int = 201
+        response.headers['Location'] = request.resource_url(task)[:-1]
+        return ''
 
