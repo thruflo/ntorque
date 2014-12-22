@@ -15,7 +15,7 @@ import gevent
 import requests
 import socket
 
-from requests.exc import RequestException
+from requests.exceptions import RequestException
 from sqlalchemy.exc import SQLAlchemyError
 
 from ntorque import backoff
