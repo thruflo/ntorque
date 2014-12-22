@@ -61,7 +61,7 @@ class CreateTask(object):
         self.default_enctype = kwargs.get('default_enctype', c.DEFAULT_ENCTYPE)
         self.header_prefix = kwargs.get('header_prefix', c.PROXY_HEADER_PREFIX)
 
-    def __call__(self, *factory_args):
+    def __call__(self, application, url, timeout, method):
         """Unpack ``enctype, body and headers`` from the request and then
           pass through as args to the underlying ``CreateTask`` factory.
         """
@@ -89,7 +89,7 @@ class CreateTask(object):
                 headers[k] = value
 
         # Use the underlying factory to create the task.
-        factory = self.factory_cls(*factory_args)
+        factory = self.factory_cls(application, url, timeout, method)
         return factory(body=body, charset=charset, enctype=enctype, headers=headers)
 
 class TaskFactory(object):
