@@ -23,7 +23,7 @@ class TaskPerformer(object):
     def __init__(self, **kwargs):
         self.task_manager_cls = kwargs.get('task_manager_cls', model.TaskManager)
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
-        self.post = kwargs.get('post', requests.post)
+        self.make_request = kwargs.get('make_request', requests.request)
         self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
     
@@ -51,12 +51,13 @@ class TaskPerformer(object):
         headers = task_data['headers']
         headers['content-type'] = '{0}; charset={1}'.format(
                 task_data['enctype'], task_data['charset'])
-        
+        method = task_data['method']
+
         # Spawn a POST to the web hook in a greenlet -- so we can monitor
         # the control flag in case we want to exit whilst waiting.
         kwargs = dict(data=body, headers=headers, timeout=timeout)
-        greenlet = self.spawn(self.post, url, **kwargs)
-        
+        greenlet = self.spawn(self.make_request, method, url, **kwargs)
+
         # Wait for the request to complete, checking the greenlet's progress
         # with an expoential backoff.
         response = None

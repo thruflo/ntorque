@@ -10,6 +10,7 @@ import transaction
 import urllib
 import unittest
 
+from ntorque.model import constants
 from ntorque.tests import boilerplate
 
 class TestRootEndpoint(unittest.TestCase):
@@ -199,7 +200,39 @@ class TestRootEndpoint(unittest.TestCase):
         self.assertEquals(task_charset, u'UTF-8')
         self.assertEquals(task_enctype, u'application/json')
         self.assertTrue(json.loads(task_body), params)
-    
+
+    def test_task_with_non_default_request_method(self):
+        """Test enqueing a task with the PUT method."""
+
+        from ntorque import model
+        get_task = model.LookupTask()
+        
+        # Create the wsgi app, which also sets up the db.
+        settings = {'ntorque.authenticate': False}
+        api = self.app_factory(**settings)
+        
+        # Setup a request with PUT method.
+        
+        # Enqueue with and without cutsom method.
+        url = u'http://example.com/hook'
+        endpoint = '/?url=' + urllib.quote_plus(url.encode('utf-8'))
+        r1 = api.post_json(endpoint, status=201)
+        endpoint += '&method=' + urllib.quote_plus(u'PUT'.encode('utf-8'))
+        r2 = api.post_json(endpoint, status=201)
+        
+        # The first task has the default method.
+        task_id = int(r1.headers['Location'].split('/')[-1])
+        with transaction.manager:
+            task = get_task(task_id)
+            task_method = task.method
+        self.assertEquals(task_method, constants.DEFAULT_METHOD)
+
+        # The second task has the PUT method.
+        task_id = int(r2.headers['Location'].split('/')[-1])
+        with transaction.manager:
+            task = get_task(task_id)
+            task_method = task.method
+        self.assertEquals(task_method, u'PUT')
 
 class TestGetCreatedTaskLocation(unittest.TestCase):
     """Test that the task location returned by ``POST /`` works."""

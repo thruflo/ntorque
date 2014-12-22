@@ -16,6 +16,7 @@ from pyramid.security import NO_PERMISSION_REQUIRED
 from pyramid.view import view_config
 
 from ntorque import model
+from ntorque.model import constants
 from . import tree
 
 # From `colander.url`.
@@ -40,8 +41,10 @@ class EnqueTask(object):
     def __init__(self, request, **kwargs):
         self.request = request
         self.bad_request = kwargs.get('bad_request', httpexceptions.HTTPBadRequest)
-        self.create_task = kwargs.get('create_task', model.CreateTask())
+        self.create_task = kwargs.get('create_task', model.CreateTask(request))
+        self.default_method = kwargs.get('default_method', constants.DEFAULT_METHOD)
         self.valid_int = kwargs.get('valid_int', VALID_INT)
+        self.valid_methods = kwargs.get('valid_methods', constants.REQUEST_METHODS)
         self.valid_url = kwargs.get('valid_url', VALID_URL)
     
     def __call__(self):
@@ -52,20 +55,29 @@ class EnqueTask(object):
         settings = request.registry.settings
         
         # Validate.
+        # - url
         url = request.GET.get('url', None)
         has_valid_url = url and self.valid_url.match(url)
         if not has_valid_url:
             raise self.bad_request(u'You must provide a valid web hook URL.')
+        # - timeout
         default_timeout = settings.get('ntorque.default_timeout')
         raw_timeout = request.GET.get('timeout', default_timeout)
         try:
             timeout = int(raw_timeout)
         except ValueError:
             raise self.bad_request(u'You must provide a valid integer timeout.')
-        
+        # - method
+        method = request.GET.get('method', self.default_method)
+        if method not in self.valid_methods:
+            methods_str = u', '.join(self.valid_methods)
+            msg = u'Request `method` must be one of: {0}.'.format(methods_str)
+            raise self.bad_request(msg)
+
         # Store the task.
-        task = self.create_task(request.application, url, timeout, request)
-        
+        app = request.application
+        task = self.create_task(app, url, timeout, method)
+
         # Notify.
         channel = settings['ntorque.redis_channel']
         instruction = '{0}:0'.format(task.id)

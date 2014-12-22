@@ -280,6 +280,8 @@ installation.
 
 **Optional**:
 
+* a `method` query parameter; which http method to use when calling the webhook --
+  the default is POST, but you can alternatively specify DELETE, PUT or PATCH.
 * a `timeout` query parameter; how long, in seconds, to wait before treating the
   web hook call as having timed out -- see the Algorithm section above for context
 

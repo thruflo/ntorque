@@ -63,17 +63,17 @@ class TestTaskPerformer(unittest.TestCase):
         
         # Create a task.
         req = Request.blank('/')
-        create_task = CreateTask()
+        create_task = CreateTask(req)
         with transaction.manager:
-            task = create_task(None, 'http://example.com', 20, req)
+            task = create_task(None, 'http://example.com', 20, u'POST')
             instruction = '{0}:0'.format(task.id)
         
         # Instantiate a performer with the requests.post method mocked
         # to return 200 without making a request.
-        mock_post = Mock()
-        mock_post.return_value.status_code = 200
-        performer = TaskPerformer(post=mock_post)
-        
+        mock_make_request = Mock()
+        mock_make_request.return_value.status_code = 200
+        performer = TaskPerformer(make_request=mock_make_request)
+
         # When performed, the task should be marked as completed.
         status = performer(instruction, flag)
         self.assertTrue(status is TASK_STATUSES[u'completed'])
@@ -95,17 +95,17 @@ class TestTaskPerformer(unittest.TestCase):
         
         # Create a task.
         req = Request.blank('/')
-        create_task = CreateTask()
+        create_task = CreateTask(req)
         with transaction.manager:
-            task = create_task(None, 'http://example.com', 20, req)
+            task = create_task(None, 'http://example.com', 20, u'POST')
             instruction = '{0}:0'.format(task.id)
         
         # Instantiate a performer with the requests.post method mocked
         # to raise a connection error.
-        mock_post = Mock()
-        mock_post.side_effect = RequestException()
-        performer = TaskPerformer(post=mock_post)
-        
+        mock_make_request = Mock()
+        mock_make_request.side_effect = RequestException()
+        performer = TaskPerformer(make_request=mock_make_request)
+
         # The task should be pending a retry.
         status = performer(instruction, flag)
         self.assertTrue(status is TASK_STATUSES[u'pending'])
@@ -126,16 +126,16 @@ class TestTaskPerformer(unittest.TestCase):
         
         # Create a task.
         req = Request.blank('/')
-        create_task = CreateTask()
+        create_task = CreateTask(req)
         with transaction.manager:
-            task = create_task(None, 'http://example.com', 20, req)
+            task = create_task(None, 'http://example.com', 20, u'POST')
             instruction = '{0}:0'.format(task.id)
         
         # Instantiate a performer with the requests.post method mocked
         # to raise a connection error.
-        mock_post = Mock()
-        mock_post.return_value.status_code = 500
-        performer = TaskPerformer(post=mock_post)
+        mock_make_request = Mock()
+        mock_make_request.return_value.status_code = 500
+        performer = TaskPerformer(make_request=mock_make_request)
         
         # The task should be pending a retry.
         status = performer(instruction, flag)
@@ -157,21 +157,55 @@ class TestTaskPerformer(unittest.TestCase):
         
         # Create a task.
         req = Request.blank('/')
-        create_task = CreateTask()
+        create_task = CreateTask(req)
         with transaction.manager:
-            task = create_task(None, 'http://example.com', 20, req)
+            task = create_task(None, 'http://example.com', 20, u'POST')
             instruction = '{0}:0'.format(task.id)
         
         # Instantiate a performer with the requests.post method mocked
         # to raise a connection error.
-        mock_post = Mock()
-        mock_post.return_value.status_code = 400
-        performer = TaskPerformer(post=mock_post)
+        mock_make_request = Mock()
+        mock_make_request.return_value.status_code = 400
+        performer = TaskPerformer(make_request=mock_make_request)
         
         # The task should be pending a retry.
         status = performer(instruction, flag)
         self.assertTrue(status is TASK_STATUSES[u'failed'])
     
+    def test_performing_task_with_method(self):
+        """Tasks are performed using the stored method."""
+
+        from mock import Mock
+        from pyramid.request import Request
+        from threading import Event
+        flag = Event()
+        flag.set()
+        
+        from ntorque.model import CreateTask
+        from ntorque.work.perform import TaskPerformer
+        
+        # Create a POST task.
+        req = Request.blank('/')
+        create_task = CreateTask(req)
+        with transaction.manager:
+            task = create_task(None, 'http://example.com', 20, u'POST')
+            instruction = '{0}:0'.format(task.id)
+        # Perform it.
+        mock_make_request = Mock()
+        performer = TaskPerformer(make_request=mock_make_request)
+        performer(instruction, flag)
+        # Assert that make_request was called with 'POST'
+        self.assertTrue(mock_make_request.call_args_list[0][0][0] == u'POST')
+
+        # Now provide a non-default method.
+        with transaction.manager:
+            task = create_task(None, 'http://example.com', 20, u'PUT')
+            instruction = '{0}:0'.format(task.id)
+        mock_make_request = Mock()
+        performer = TaskPerformer(make_request=mock_make_request)
+        performer(instruction, flag)
+        self.assertTrue(mock_make_request.call_args_list[0][0][0] == u'PUT')
+
     def test_performing_task_waits(self):
         """Performing a task exponentially backs off polling the greenlet
           to see whether it has completed.
@@ -191,14 +225,14 @@ class TestTaskPerformer(unittest.TestCase):
         
         # Create a task.
         req = Request.blank('/')
-        create_task = CreateTask()
+        create_task = CreateTask(req)
         with transaction.manager:
-            task = create_task(None, 'http://example.com', 20, req)
+            task = create_task(None, 'http://example.com', 20, u'POST')
             instruction = '{0}:0'.format(task.id)
         
         # Instantiate a performer with the requests.post method mocked
-        # to take 0.6 seconds to return 200.
-        def mock_post(*args, **kwargs):
+        # to take 0.4 seconds to return 200.
+        def mock_make_request(*args, **kwargs):
             sleep(0.4)
             mock_response = Mock()
             mock_response.status_code = 200
@@ -210,12 +244,10 @@ class TestTaskPerformer(unittest.TestCase):
             counter(delay)
             sleep(delay)
         
-        performer = TaskPerformer(post=mock_post, sleep=mock_sleep)
+        performer = TaskPerformer(make_request=mock_make_request, sleep=mock_sleep)
         status = performer(instruction, flag)
         self.assertTrue(status is TASK_STATUSES[u'completed'])
         
         # And gevent.sleep was called with exponential backoff.
         self.assertTrue(0.1499 < counter.call_args_list[1][0][0] < 0.1501)
         self.assertTrue(0.2249 < counter.call_args_list[2][0][0] < 0.2251)
-    
-

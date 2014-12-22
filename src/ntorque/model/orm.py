@@ -43,6 +43,8 @@ Base = declarative.declarative_base()
 
 from .constants import DEFAULT_CHARSET
 from .constants import DEFAULT_ENCTYPE
+from .constants import DEFAULT_METHOD
+from .constants import REQUEST_METHODS
 from .constants import TASK_STATUSES
 
 from .due import DueFactory
@@ -211,9 +213,15 @@ class Task(Base, BaseMixin):
     url = Column(Unicode(256), nullable=False)
     charset = Column(Unicode(24), default=DEFAULT_CHARSET, nullable=False)
     enctype = Column(Unicode(256), default=DEFAULT_ENCTYPE, nullable=False)
-    headers = Column(UnicodeText, default=u'{}')
     body = Column(UnicodeText)
-    
+
+    # Pass through headers and the HTTP method to use.
+    headers = Column(UnicodeText, default=u'{}')
+
+    # Is it completed or not?
+    method = Column(Enum(*REQUEST_METHODS, name='ntorque_request_methods'),
+            default=DEFAULT_METHOD, nullable=False)
+
     def __json__(self, request=None, include_request_data=False):
         data = {
             'due': self.due.isoformat(),
@@ -224,10 +232,9 @@ class Task(Base, BaseMixin):
             'url': self.url,
         }
         if include_request_data:
+            data['body'] = self.body
             data['charset'] = self.charset
             data['enctype'] = self.enctype
             data['headers'] = json.loads(self.headers)
-            data['body'] = self.body
+            data['method'] = self.method
         return data
-    
-

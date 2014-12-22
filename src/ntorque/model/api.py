@@ -50,7 +50,8 @@ class CreateApplication(object):
 class CreateTask(object):
     """Create a task."""
     
-    def __init__(self, **kwargs):
+    def __init__(self, request, **kwargs):
+        self.request = request
         self.default_charset = kwargs.get('default_charset',
                 constants.DEFAULT_CHARSET)
         self.default_enctype = kwargs.get('default_enctype',
@@ -60,12 +61,13 @@ class CreateTask(object):
         self.task_cls = kwargs.get('task_cls', model.Task)
         self.session = kwargs.get('session', model.Session)
     
-    def __call__(self, app, url, timeout, request):
+    def __call__(self, app, url, timeout, method):
         """Create and return a task belonging to the given ``app`` using the
           ``url`` and ``request`` provided.
         """
         
         # Get the content type and parse the encoding type out of it.
+        request = self.request
         content_type = request.headers.get('Content-Type', None)
         if not content_type:
             enctype = self.default_enctype
@@ -89,8 +91,8 @@ class CreateTask(object):
         
         # Create, save and return.
         task = self.task_cls(app=app, body=body, charset=charset,
-                enctype=enctype, headers=headers_json, timeout=timeout,
-                url=url)
+                enctype=enctype, headers=headers_json, method=method,
+                timeout=timeout, url=url)
         self.session.add(task)
         self.session.flush()
         return task
