@@ -13,17 +13,58 @@ logger = logging.getLogger(__name__)
 
 import gevent
 import requests
+import socket
 
+from requests.exc import RequestException
 from sqlalchemy.exc import SQLAlchemyError
 
 from ntorque import backoff
 from ntorque import model
 
+class MakeRequest(object):
+    """Wrap ``requests.request`` with some instrumentation."""
+
+    def __init__(self, **kwargs):
+        self.log = kwargs.get('log', logger)
+        self.make_request = kwargs.get('make_request', requests.request)
+        self.request_exc = kwargs.get('request_exc', RequestException)
+        self.sock_timeout = kwargs.get('sock_timeout', socket.timeout)
+
+    def __call__(self, *args, **kwargs):
+        """Make the request and log at the appropriate level for the response."""
+
+        # Prepare
+        error = None
+        response = None
+
+        # Try and make the request.
+        try:
+            response = self.make_request(*args, **kwargs)
+        except (self.request_exc, self.sock_timeout) as err:
+            error = err
+        else:
+            try:
+                response.raise_for_status()
+            except self.request_exc as err:
+                error = err
+
+        # Log appropriately.
+        key = u'torque.work.perform.request'
+        if error:
+            self.log.warn((key, args, kwargs))
+            self.log.warn((response.status_int, error))
+            if response:
+                self.log.info(response.text)
+        else:
+            self.debug((key, args, kwargs, response.status_int))
+
+        return response
+
 class TaskPerformer(object):
     def __init__(self, **kwargs):
         self.task_manager_cls = kwargs.get('task_manager_cls', model.TaskManager)
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
-        self.make_request = kwargs.get('make_request', requests.request)
+        self.make_request = kwargs.get('make_request', MakeRequest())
         self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
     
@@ -90,4 +131,3 @@ class TaskPerformer(object):
             status = task_manager.complete()
         return status
     
-

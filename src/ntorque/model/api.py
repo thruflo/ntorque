@@ -33,7 +33,6 @@ from . import constants as c
 from . import due
 from . import orm as model
 
-
 class CreateApplication(object):
     """Create an application."""
     
