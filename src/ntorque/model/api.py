@@ -199,7 +199,7 @@ class GetDueTasks(object):
     
     def __init__(self, **kwargs):
         self.utcnow = kwargs.get('utcnow', datetime.utcnow)
-        self.statuses = kwargs.get('statuses', constants.TASK_STATUSES)
+        self.statuses = kwargs.get('statuses', c.TASK_STATUSES)
         self.task_cls = kwargs.get('task_cls', model.Task)
     
     def __call__(self, limit=99, offset=0):
@@ -324,7 +324,7 @@ class TaskManager(object):
     def __init__(self, **kwargs):
         self.due_factory = kwargs.get('due_factory', due.DueFactory())
         self.session = kwargs.get('session', model.Session)
-        self.statuses = kwargs.get('statuses', constants.TASK_STATUSES)
+        self.statuses = kwargs.get('statuses', c.TASK_STATUSES)
         self.task_cls = kwargs.get('task_cls', model.Task)
         self.tx_manager = kwargs.get('tx_manager', transaction.manager)
     
