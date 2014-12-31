@@ -121,7 +121,7 @@ refuses to rely on it as the source of truth&trade; about a task's status. Inste
 the single source of truth is the PostgreSQL database.
 
 This is achieved by automatically setting a task to retry every time it's read
-("aquired") from the database. Specifically, the query that reads the task data
+("acquired") from the database. Specifically, the query that reads the task data
 is performed within a transaction that also updates the task's due date and retry
 count. This means that in any failure scenario, nTorque can always just be restarted
 (potentially on a new server as long as it connects to the same database) and you
@@ -136,8 +136,7 @@ between the due date of the task as it lies, gloriously in repose, and the
 timeout of the web hook call. For there is one thing we don't want to do, and
 that is keep retrying tasks before they've had a chance to complete.
 
-In order to prevent this behaviour -- which would hammer the web hook server
-with unnecessary requests -- we impose a simple constraint:
+In order to prevent this behaviour, we impose a simple constraint:
 
 > **The due date set when the task is transactionally read and incremented must
   be longer than the web hook timeout.**
@@ -146,11 +145,12 @@ This means that, in the worst case (when a web hook request does timeout or
 fail to respond), you must wait for the full timeout duration before your task
 is retried. So whilst you may naturally want to set a relatively high timeout
 for long running tasks, you may want to keep it shorter for simper tasks like
-sending your new user's welcome or reset password email.
+sending your new user's welcome or reset password email: so that they're
+retried faster.
 
-The good news is that whilst you have a global `NTORQUE_DEFAULT_TIMEOUT`
-configuration variable, you can also override to set an appropriate duration for
-different tasks using the [`timeout` query parameter](#usage-api/post).
+The good news is that, in addition to the global `NTORQUE_DEFAULT_TIMEOUT`
+configuration variable, you can set an appropriate timeout for different tasks
+using the [`timeout` query parameter](#usage-api/post).
 
 Simple -- once you know how the system works.
 
