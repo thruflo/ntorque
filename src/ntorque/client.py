@@ -151,10 +151,11 @@ class HybridTorqueClient(object):
       and that tasks will never be lost due to nTorque being down or restarting.
     """
 
-    def __init__(self, dispatcher, torque_url, torque_api_key=None, **kwargs):
+    def __init__(self, dispatcher, torque_url, api_key=None, app_id=None, **kwargs):
         self.dispatcher = dispatcher
         self.torque_url = torque_url
-        self.torque_api_key = torque_api_key
+        self.api_key = api_key
+        self.app_id = app_id
         self.factory_cls = kwargs.get('factory_cls', model.TaskFactory)
         self.lookup = kwargs.get('lookup', model.LookupApplication())
         self.header_prefix = kwargs.get('header_prefix', c.PROXY_HEADER_PREFIX)
@@ -168,9 +169,10 @@ class HybridTorqueClient(object):
             headers = {}
         
         # Unpack.
+        api_key = self.api_key
+        app_id = self.app_id
         header_prefix = self.header_prefix
-        torque_api_key = self.torque_api_key
-
+        
         # Prepare and extract any pass through headers.
         passthrough_headers = {}
         for key in headers.keys():
@@ -186,8 +188,16 @@ class HybridTorqueClient(object):
         if content_type: # Extract just the enctype.
             properties['enctype'] = content_type.split(';')[0]
 
-        # Use the api key to get an application and instantiate a task factory.
-        application = self.lookup(torque_api_key) if torque_api_key else None
+        # Either use the app_id or the api_key to get an application. Note that
+        # the task factory works with `None`, an id or an instance. Using an
+        # app_id is more efficient as it skips a db query.
+        application = None
+        if app_id:
+            application = app_id
+        elif api_key:
+            application = self.lookup(api_key)
+        
+        # Instantiate a task factory.
         factory = self.factory_cls(application, url, timeout, method)
 
         # Create and store the task.

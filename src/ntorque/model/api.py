@@ -117,8 +117,15 @@ class TaskFactory(object):
             headers = {}
         headers_json = json.dumps(headers)
         
+        # Accept either app or app_id.
+        if app is not None:
+            if getattr(app, 'id', None):
+                kwargs['app'] = app
+            elif isinstance(app, int):
+                kwargs['app_id'] = app
+
         # Create.
-        task = self.task_cls(app=app, body=body, headers=headers_json,
+        task = self.task_cls(body=body, headers=headers_json,
                 method=method, timeout=timeout, url=url, **kwargs)
 
         # Save, flush and return.
