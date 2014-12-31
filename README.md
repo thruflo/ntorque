@@ -110,22 +110,23 @@ notification pattern.
 Unlike [RQ][] and [Resque][], nTorque doesn't trust Redis as a persistence layer.
 Instead, it relies on good-old-fashioned PostgreSQL: the first thing nTorque does
 when a new task arrives is write it to disk. It then notifies a consumer process
-using Redis [BLPOP][], which reads the data from disk and performs the task by
-making an HTTP request to its webhook url.
+using Redis [BLPOP][]. The consumer then reads the data from disk and performs
+the task by making an HTTP request to its webhook url.
 
 In most cases, this request will succeed, the task will be marked as completed
 and no more needs to be done. However, this won't happen *every time*, e.g.: when
 there's a network error or the webhook server is temporarily down. Because there
 are edge case failure scenarios where the web hook response is unreliable, nTorque
-refuses to rely it as the source of truth&trade; about a task's status. Instead,
-the single source of truth is, predictably enough, the PostgreSQL database.
+refuses to rely on it as the source of truth&trade; about a task's status. Instead,
+the single source of truth is the PostgreSQL database.
 
-This is achieved through an algorithm that automatically sets a task to retry every
-time it's read from the database. Specifically, the query that reads the task data
+This is achieved by automatically setting a task to retry every time it's read
+("aquired") from the database. Specifically, the query that reads the task data
 is performed within a transaction that also updates the task's due date and retry
 count. This means that in any failure scenario, nTorque can always just be restarted
-(potentially on a new server as long as it connects to the same database) and tasks
-will be picked up and performed at least once.
+(potentially on a new server as long as it connects to the same database) and you
+can be sure that tasks will be performed at least once no matter where they were
+in the pipeline when whatever it was fell over.
 
 Incidentally, tasks due to be retried are picked up by a background process that
 polls the database every `NTORQUE_REQUEUE_INTERVAL` seconds.
@@ -136,10 +137,10 @@ timeout of the web hook call. For there is one thing we don't want to do, and
 that is keep retrying tasks before they've had a chance to complete.
 
 In order to prevent this behaviour -- which would hammer the web hook server
-with unnecessary requests -- we impose a simple constraint. The due date set
-when the task is transactionally read and incremented must be longer than the
-web hook timeout. (Plus a small margin to cover the time it takes to prepare
-and handle the web hook request).
+with unnecessary requests -- we impose a simple constraint:
+
+> **The due date set when the task is transactionally read and incremented must
+  be longer than the web hook timeout.**
 
 This means that, in the worst case (when a web hook request does timeout or
 fail to respond), you must wait for the full timeout duration before your task
@@ -215,10 +216,15 @@ Deployment:
 
 * `NTORQUE_AUTHENTICATE`: whether to require authentication; defaults to `False`
   -- see authentication section in Usage below
-* `NTORQUE_ENABLE_HSTS`: set this to `True` if you're using https
+* `NTORQUE_ENABLE_HSTS`: set this to `True` if you're using [HSTS][]
 * `HSTS_PROTOCOL_HEADER`: set this to, e.g.: `X-Forwarded-Proto` if you're running
-  behind an https proxy frontend
-* `MODE`: defaults to `development`, set to `production` when you deploy for real
+  behind an https proxy frontend (see [pyramid_hsts][] for more details)
+* `MODE`: if set to `development` this will run [Gunicorn][] in watch mode (so the app
+  server restarts when a Python file changes) and will raise HTTP exceptions in the
+  API views (rather than returning them). If set to `production` it will run Gunicorn
+  behind a [newrelic][] client. If this isn't quite what you want then either don't
+  set it or set it to any other string (or hack the `run.sh` and / or `gunicorn.py`
+  scripts)
 
 Redis:
 
@@ -234,8 +240,12 @@ Database:
 * other db config options are `DATABASE_MAX_OVERFLOW`, `DATABASE_POOL_SIZE` and
   `DATABASE_POOL_RECYCLE`
 
-[pyramid_redis]: https://github.com/thruflo/pyramid_redis
 [database configuration string]: http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html
+[gunicorn]: http://gunicorn.org
+[hsts]: http://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+[newrelic]: https://addons.heroku.com/newrelic
+[pyramid_hsts]: https://github.com/thruflo/pyramid_hsts
+[pyramid_redis]: https://github.com/thruflo/pyramid_redis
 
 ## Usage / API
 
@@ -285,11 +295,11 @@ header.
 
 Returns a JSON data dict with status information about a task.
 
-### `POST /task/:id/push`
+#### `POST /task/:id/push`
 
-Pushes a task onto the redis notification channel to be aquired and performed.
-You should *not* normally need to use this. It's exposed as an optimisation
-for [hybrid][] integrations.
+Pushes a task onto the redis notification channel to be consumed, aquired and
+performed. You should *not* normally need to use this. It's exposed as an
+optimisation for [hybrid][] integrations.
 
 [hybrid]: https://github.com/thruflo/ntorque/blob/master/src/ntorque/client.py
 
