@@ -34,8 +34,8 @@ Because it uses web hooks, you can:
 1. use it from (and to integrate) applications written in any language
 1. use DNS / web server load balancing to distribute tasks
 1. bootstrap your task execution environment the way you bootstrap a web
-   application -- i.e.: once at startup, potentially re-using your web
-   application's configuration and middleware
+   application -- i.e.: once at startup, re-using your web app's configuration
+   and middleware
 
 [AMPQ]: http://www.rabbitmq.com
 [ESB]: http://en.wikipedia.org/wiki/Enterprise_service_bus
@@ -109,27 +109,26 @@ notification pattern.
 
 Unlike [RQ][] and [Resque][], nTorque doesn't trust Redis as a persistence layer.
 Instead, it relies on good-old-fashioned PostgreSQL: the first thing nTorque does
-when a new task arrives is write it to disk. Now, when the consumer receives the
-push notification from Redis, it reads the data from disk and performs the task by
-making a POST request to the task's webhook url.
+when a new task arrives is write it to disk. It then notifies a consumer process
+using Redis [BLPOP][], which reads the data from disk and performs the task by
+making an HTTP request to its webhook url.
 
-In most cases, this request will succeed, the task will be marked as completed and
-no more needs to be done. However, this won't happen *every time*, for example, if
-there's a network error or the webhook server is temporarily down. Because the web
-hook response is fundamentally unreliable, nTorque refuses to rely it as the source
-of truth&trade; about a task's status. Instead, the single source of truth is,
-predictably enough, the PostgreSQL database.
+In most cases, this request will succeed, the task will be marked as completed
+and no more needs to be done. However, this won't happen *every time*, e.g.: when
+there's a network error or the webhook server is temporarily down. Because there
+are edge case failure scenarios where the web hook response is unreliable, nTorque
+refuses to rely it as the source of truth&trade; about a task's status. Instead,
+the single source of truth is, predictably enough, the PostgreSQL database.
 
-The way this is achieved is through an algorithm that automatically sets a
-task to retry every time it's read from the database. Specifically, the query
-that reads the task data is performed within a transaction that also updates
-the task's due date and retry count. This means that in any failure scenario
-nTorque can simply be restarted (potentially on a new server as long as it
-connects to the same database) and tasks will always be guaranteed to be
-performed at least once.
+This is achieved through an algorithm that automatically sets a task to retry every
+time it's read from the database. Specifically, the query that reads the task data
+is performed within a transaction that also updates the task's due date and retry
+count. This means that in any failure scenario, nTorque can always just be restarted
+(potentially on a new server as long as it connects to the same database) and tasks
+will be picked up and performed at least once.
 
-Incidentally, tasks due to be retried are straightforwardly picked up by a
-background process that polls the database.
+Incidentally, tasks due to be retried are picked up by a background process that
+polls the database every `NTORQUE_REQUEUE_INTERVAL` seconds.
 
 More importantly, and where this description has been heading, is the relation
 between the due date of the task as it lies, gloriously in repose, and the
@@ -154,11 +153,12 @@ different tasks using the [`timeout` query parameter](#usage-api/post).
 
 Simple -- once you know how the system works.
 
-[RQ]: http://python-rq.org/
-[Resque]: https://github.com/resque/resque
+[BLPOP]: http://redis.io/commands/blpop
+[Gevent]: http://www.gevent.org
 [PostgreSQL]: http://www.postgresql.org
 [Redis]: http://redis.io
-[Gevent]: http://www.gevent.org
+[Resque]: https://github.com/resque/resque
+[RQ]: http://python-rq.org/
 
 
 ## Installation
@@ -208,6 +208,8 @@ Algorithm / Behaviour:
   should make sure its longer than `NTORQUE_DEFAULT_TIMEOUT`
 * `NTORQUE_MAX_RETRIES`: how many attempts before giving up on a task -- defaults
   to `36`
+* `NTORQUE_REQUEUE_INTERVAL`: how often, in seconds, to poll the database for
+  tasks to requeue -- defaults to 5
 
 Deployment:
 
