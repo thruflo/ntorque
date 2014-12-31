@@ -1,4 +1,5 @@
 {
   "name": "nTorque",
+  "issues": false,
   "travis": true
 }
