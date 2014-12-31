@@ -109,40 +109,27 @@ notification pattern.
 
 Unlike [RQ][] and [Resque][], nTorque doesn't trust Redis as a persistence layer.
 Instead, it relies on good-old-fashioned PostgreSQL: the first thing nTorque does
-when a new task arrives is write it to disk (with a due date and a retry count).
+when a new task arrives is write it to disk. Now, when the consumer receives the
+push notification from Redis, it reads the data from disk and performs the task by
+making a POST request to the task's webhook url.
 
-Now, when the consumer receives the push notification from Redis, it reads the
-data from disk and performs the task by making a POST request to the
-task's webhook url. In most cases, this request will succeed, the task will
-be marked as completed and no more needs to be done. However, this won't happen
-*every time* as the process is highly vulnerable to network errors.
-
-The nTorque process can fall over. Redis can fall over. The webhook request can
-encounter any number of transient errors. The longer the web hook request takes
-to return, the more chance there is something will go wrong.
-
-Because of these risks, nTorque explicitly refuses to rely on either the Redis
-notification channel or the web hook response as the source of truth&trade;
-about a task's status -- whether it has been performed successfully or not.
-Instead, the single source of truth is, predictably enough, the PostgreSQL
-database.
+In most cases, this request will succeed, the task will be marked as completed and
+no more needs to be done. However, this won't happen *every time*, for example, if
+there's a network error or the webhook server is temporarily down. Because the web
+hook response is fundamentally unreliable, nTorque refuses to rely it as the source
+of truth&trade; about a task's status. Instead, the single source of truth is,
+predictably enough, the PostgreSQL database.
 
 The way this is achieved is through an algorithm that automatically sets a
-task to retry every time it's read from the database. Explicitly, the query
+task to retry every time it's read from the database. Specifically, the query
 that reads the task data is performed within a transaction that also updates
-the task's due date and retry count. This means that, if nothing happens
-(the system falls over, the network hangs) after reading the task, it will
-remain stored in a state that indicates that and when it needs to be retried.
-
-If the task is completed successfully, it is marked as completed before its
-retry date is due. If the web hook call fails, the task's status is updated
-as soon as the information becomes available, e.g.: bringing the retry date
-forward or making it as failed. However, fundamentally, if nothing happens,
-the task remains untouched, ready to retried when due.
+the task's due date and retry count. This means that in any failure scenario
+nTorque can simply be restarted (potentially on a new server as long as it
+connects to the same database) and tasks will always be guaranteed to be
+performed at least once.
 
 Incidentally, tasks due to be retried are straightforwardly picked up by a
-background process that polls the database relatively infrequently (e.g.:
-every few seconds).
+background process that polls the database.
 
 More importantly, and where this description has been heading, is the relation
 between the due date of the task as it lies, gloriously in repose, and the
@@ -156,28 +143,16 @@ web hook timeout. (Plus a small margin to cover the time it takes to prepare
 and handle the web hook request).
 
 This means that, in the worst case (when a web hook request does timeout or
-the system falls over when performing a task), you must wait for the full
-timeout duration before your task is retried. Normally, this is a relatively
-minor problem. However, it is amplified by the nature of web hooks: that you
-may naturally want to set a relatively high timeout on request handlers that
-are designed to execute long running tasks.
+fail to respond), you must wait for the full timeout duration before your task
+is retried. So whilst you may naturally want to set a relatively high timeout
+for long running tasks, you may want to keep it shorter for simper tasks like
+sending your new user's welcome or reset password email.
 
-For most web applications, web hooks might only need a maximum of a minute or
-two to perform a task like sending an email or re-calculating a score. For
-more complex tasks, like re-generating a whole site, or performing some kind
-of data analysis, you may want to configure a much higher timeout. However,
-this is unlikely to be an unacceptable period to wait before retrying sending
-your new user's welcome or reset password email.
+The good news is that whilst you have a global `NTORQUE_DEFAULT_TIMEOUT`
+configuration variable, you can also override to set an appropriate duration for
+different tasks using the [`timeout` query parameter](#usage-api/post).
 
-Left as a one-size fits all configuration option, the choice is stark.
-Short retry times may result in long-running tasks hammering your server.
-Higher timeouts may delay simpler tasks being performed.
-
-The good news, of course, is that you don't have to rely on a one-size fits all
-configuration value: `NTORQUE_DEFAULT_TIMEOUT`. You can also override the web
-hook request timeout on a task by task basis, via the `timeout` query parameter.
-So, after all this, the solution is to set an appropriate timeout for
-different length of tasks. Simple -- once you know how the system works.
+Simple -- once you know how the system works.
 
 [RQ]: http://python-rq.org/
 [Resque]: https://github.com/resque/resque
@@ -289,7 +264,7 @@ installation.
 
 This aside, you can pass through any POST data, encoded as any content type you
 like. The data, content type and character encoding will be passed on in the POST
-request to your web hook.
+(or DELETE, PUT or PATCH) request to your web hook.
 
 **Headers**:
 
@@ -304,16 +279,24 @@ request headers.
 You should receive a 201 response with the url to the task in the `Location`
 header.
 
-### `GET /task:id`
+### `GET /task/:id`
 
 Returns a JSON data dict with status information about a task.
+
+### `POST /task/:id/push`
+
+Pushes a task onto the redis notification channel to be aquired and performed.
+You should *not* normally need to use this. It's exposed as an optimisation
+for [hybrid][] integrations.
+
+[hybrid]: https://github.com/thruflo/ntorque/blob/master/src/ntorque/client.py
 
 
 ## Pro-Tips
 
 nTorque is a system for reliably calling web hook task handlers: not for
 implementing them. You are responsible for implementing and exposing your own
-web hooks. In most languages and frameworks this is very simple, e.g.: in Ruby
+web hooks. In most languages and frameworks this is simple, e.g.: in Ruby
 using [Sinatra][]:
 
 ```ruby
@@ -335,11 +318,11 @@ Key things to bear in mind are:
 [Sinatra]: http://www.sinatrarb.com
 [Flask]: http://flask.pocoo.org
 
-#### Return 200 OK
+#### Status Code
 
 After successfully performing their task, your web hooks are expected to return
-an HTTP response with a `200` status code. If not, nTorque will keep retrying
-the task.
+an HTTP response with a `200` or `201` status code. If not, nTorque will keep
+retrying the task.
 
 #### Avoid Timeouts
 
