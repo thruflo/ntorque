@@ -27,6 +27,7 @@ DEFAULTS = {
     'mode': os.environ.get('MODE', 'development'),
     'redis_channel': os.environ.get('NTORQUE_REDIS_CHANNEL', 'ntorque'),
     'cleanup_after_days': os.environ.get('NTORQUE_CLEANUP_AFTER_DAYS', 7),
+    'requeue_interval': os.environ.get('NTORQUE_REQUEUE_INTERVAL', 5),
 }
 
 class Bootstrap(object):

@@ -21,12 +21,9 @@ from ntorque import model
 from .main import Bootstrap
 
 class RequeuePoller(object):
-    """Takes instructions from one or more redis channels. Calls a handle
-      function in a new thread, passing through a flag that the handle
-      function can periodically check to exit.
-    """
-    
-    def __init__(self, redis, channel, delay=0.001, interval=10, **kwargs):
+    """Polls the database for tasks that should be re-queued."""
+
+    def __init__(self, redis, channel, delay=0.001, interval=5, **kwargs):
         self.redis = redis
         self.channel = channel
         self.delay = delay
@@ -91,9 +88,12 @@ class ConsoleScript(object):
         settings = config.registry.settings
         redis_client = self.get_redis(settings, registry=config.registry)
         channel = settings.get('ntorque.redis_channel')
-        
+
+        # Get the requeue interval.
+        interval = int(settings.get('ntorque.requeue_interval'))
+
         # Instantiate and start the consumer.
-        poller = self.requeue_cls(redis_client, channel)
+        poller = self.requeue_cls(redis_client, channel, interval=interval)
         try:
             poller.start()
         finally:
