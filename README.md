@@ -53,8 +53,7 @@ And the following features:
 * persistent task storage
 * non-blocking, concurrent task execution
 * HTTPS and redirect support
-* configurable (linear or exponential) backoff to retry tasks that fail due
-  to network, connection or internal server errors
+* configurable (linear or exponential) backoff
 
 
 ## Implementation
