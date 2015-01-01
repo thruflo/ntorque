@@ -90,7 +90,7 @@ In the event of a response with status code:
 
 [Hack here][] if you'd like a different strategy.
 
-[Hack here]: https://github.com/thruflo/ntorque/blob/master/src/ntorque/work/perform.py#L119
+[Hack here]: https://github.com/thruflo/ntorque/blob/master/src/ntorque/work/perform.py#L133
 
 ## Algorithm
 
