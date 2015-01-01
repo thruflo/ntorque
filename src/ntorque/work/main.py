@@ -8,11 +8,13 @@ __all__ = [
     'ConsoleEnvironment',
 ]
 
-# Patch everything with gevent.
 import gevent.monkey
 import gevent_psycopg2
-gevent.monkey.patch_all()
-gevent_psycopg2.monkey_patch()
+
+def gevent_monkey_patch():
+    gevent.monkey.patch_all()
+    gevent_psycopg2.monkey_patch()
+gevent_monkey_patch()
 
 # Enable logging to stderr
 import logging

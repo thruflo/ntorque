@@ -6,6 +6,9 @@ __all__ = [
     'Cleaner',
 ]
 
+from .main import gevent_monkey_patch
+gevent_monkey_patch()
+
 import logging
 logger = logging.getLogger(__name__)
 

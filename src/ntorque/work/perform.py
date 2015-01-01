@@ -8,6 +8,9 @@ __all__ = [
     'TaskPerformer',
 ]
 
+from .main import gevent_monkey_patch
+gevent_monkey_patch()
+
 import logging
 logger = logging.getLogger(__name__)
 
