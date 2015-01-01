@@ -211,7 +211,7 @@ Algorithm / Behaviour:
 
 Deployment:
 
-* `NTORQUE_AUTHENTICATE`: whether to require authentication; defaults to `False`
+* `NTORQUE_AUTHENTICATE`: whether to require authentication; defaults to `True`
   -- see authentication section in Usage below
 * `NTORQUE_ENABLE_HSTS`: set this to `True` if you're using [HSTS][]
 * `HSTS_PROTOCOL_HEADER`: set this to, e.g.: `X-Forwarded-Proto` if you're running
