@@ -219,7 +219,7 @@ class HybridTorqueClient(object):
             headers['TORQUE_API_KEY'] = torque_api_key
 
         # Build the url.
-        url = self.join_path(torque_url, 'tasks', str(task.id))
+        url = self.join_path(torque_url, 'tasks', str(task.id), 'push')
 
         # Dispatch the notification.
         return dispatch(url, None, headers)
