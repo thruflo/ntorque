@@ -16,10 +16,7 @@ logger = logging.getLogger(__name__)
 import json
 from datetime import datetime
 
-from zope.sqlalchemy import ZopeTransactionExtension
-
 from sqlalchemy import orm
-from sqlalchemy.ext import declarative
 
 from sqlalchemy.schema import Column
 from sqlalchemy.schema import Index
@@ -32,14 +29,15 @@ from sqlalchemy.types import Integer
 from sqlalchemy.types import Unicode
 from sqlalchemy.types import UnicodeText
 
+from pyramid_basemodel import Base
+from pyramid_basemodel import BaseMixin
+from pyramid_basemodel import Session
+
 from ntorque import root
 faux_root = lambda **kwargs: root.TraversalRoot(None, **kwargs)
 
 from ntorque import util
 generate_api_key = lambda: util.generate_random_digest(num_bytes=20)
-
-Session = orm.scoped_session(orm.sessionmaker(extension=ZopeTransactionExtension()))
-Base = declarative.declarative_base()
 
 from .constants import DEFAULT_CHARSET
 from .constants import DEFAULT_ENCTYPE
@@ -78,20 +76,6 @@ def next_status(context, get_status=None):
     
     # Return the next due date.
     return get_status(retry_count)
-
-
-class BaseMixin(object):
-    """Provides an int ``id`` as primary key, ``version``, ``created`` and
-      ``modified`` columns and a scoped ``self.query`` property.
-    """
-    
-    id = Column(Integer, primary_key=True)
-    created = Column('c', DateTime, default=datetime.utcnow, nullable=False)
-    modified = Column('m', DateTime, default=datetime.utcnow, nullable=False,
-            onupdate=datetime.utcnow)
-    version = Column('v', Integer, default=1, nullable=False)
-    
-    query = Session.query_property()
 
 class LifeCycleMixin(object):
     """Provide life cycle flags for `is_active`` and ``is_deleted``."""
@@ -144,15 +128,12 @@ class LifeCycleMixin(object):
     def undelete(self):
         self._set_life_cycle_state('is_deleted', False, 'undeleted')
     
-
-
 class Application(Base, BaseMixin, LifeCycleMixin):
     """Encapsulate an application."""
     
     __tablename__ = 'ntorque_applications'
     
     name = Column(Unicode(96), nullable=False)
-
 
 class APIKey(Base, BaseMixin, LifeCycleMixin):
     """Encapsulate an api key used to authenticate an application."""
