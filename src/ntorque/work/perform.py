@@ -61,14 +61,25 @@ class MakeRequest(object):
         return response
 
 class TaskPerformer(object):
+    """Utility that acquires and performs a task by making an HTTP request."""
+
     def __init__(self, **kwargs):
         self.task_manager_cls = kwargs.get('task_manager_cls', model.TaskManager)
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
         self.make_request = kwargs.get('make_request', MakeRequest())
+        self.session = kwargs.get('session', model.Session)
         self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
     
     def __call__(self, instruction, control_flag):
+        """Perform a task and close any db connections."""
+
+        try:
+            return self.perform(instruction, control_flag)
+        finally:
+            self.session.remove()
+
+    def perform(self, instruction, control_flag):
         """Acquire a task, perform it and update its status accordingly."""
         
         # Parse the instruction to transactionally

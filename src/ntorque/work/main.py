@@ -10,10 +10,9 @@ __all__ = [
 
 # Patch everything with gevent.
 import gevent.monkey
+import gevent_psycopg2
 gevent.monkey.patch_all()
-
-#import psycogreen.gevent
-#psycogreen.gevent.patch_psycopg()
+gevent_psycopg2.monkey_patch()
 
 # Enable logging to stderr
 import logging
