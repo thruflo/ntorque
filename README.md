@@ -88,11 +88,9 @@ In the event of a response with status code:
 * 202 - 499: the task is marked as failed and is not retried
 * 500 (or network error): the task is retried
 
-Note that it's eminently possible to fork / provide a patch that makes this
-behaviour more configurable, e.g.: to provide an alternative strategy to
-retry failed tasks. Also that completed tasks are periodically deleted after
-a configurable time period.
+[Hack here][] if you'd like a different strategy.
 
+[Hack here]: https://github.com/thruflo/ntorque/blob/master/src/ntorque/work/perform.py#L119
 
 ## Algorithm
 
@@ -110,7 +108,7 @@ Unlike [RQ][] and [Resque][], nTorque doesn't trust Redis as a persistence layer
 Instead, it relies on good-old-fashioned PostgreSQL: the first thing nTorque does
 when a new task arrives is write it to disk. It then notifies a consumer process
 using Redis [BLPOP][]. The consumer then reads the data from disk and performs
-the task by making an HTTP request to its webhook url.
+the task by making an HTTP request to its url.
 
 In most cases, this request will succeed, the task will be marked as completed
 and no more needs to be done. However, this won't happen *every time*, e.g.: when
@@ -300,7 +298,7 @@ Pushes a task onto the redis notification channel to be consumed, aquired and
 performed. You should *not* normally need to use this. It's exposed as an
 optimisation for [hybrid][] integrations.
 
-[hybrid]: https://github.com/thruflo/ntorque/blob/master/src/ntorque/client.py
+[hybrid]: https://github.com/thruflo/ntorque/blob/master/src/ntorque/client.py#L141
 
 
 ## Pro-Tips
