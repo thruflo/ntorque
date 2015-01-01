@@ -55,11 +55,11 @@ class MakeRequest(object):
         key = u'torque.work.perform.request'
         if error:
             self.log.warn((key, args, kwargs))
-            self.log.warn((response.status_int, error))
+            self.log.warn((response.status_code, error))
             if response:
                 self.log.info(response.text)
         else:
-            self.debug((key, args, kwargs, response.status_int))
+            self.log.debug((key, args, kwargs, response.status_code))
 
         return response
 
