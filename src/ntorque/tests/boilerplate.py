@@ -51,8 +51,8 @@ class TestAppFactory(object):
         # Instantiate.
         self.settings = self.test_settings.copy()
         self.settings.update(kwargs)
-        app = self.app_factory(settings=self.settings)
-        
+        app = self.app_factory(None, **self.settings)
+
         # Create the db.
         self.create()
         
