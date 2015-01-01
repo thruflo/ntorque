@@ -7,7 +7,7 @@ setup(
     long_description = open('README.md').read(),
     author = 'James Arthur',
     author_email = 'username: thruflo, domain: gmail.com',
-    url = 'http://documentup.com/thruflo/ntorque',
+    url = 'http://ntorque.com',
     classifiers = [
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
