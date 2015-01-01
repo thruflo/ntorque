@@ -70,7 +70,7 @@ class TaskPerformer(object):
         self.session = kwargs.get('session', model.Session)
         self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
-    
+
     def __call__(self, instruction, control_flag):
         """Perform a task and close any db connections."""
 
@@ -81,7 +81,7 @@ class TaskPerformer(object):
 
     def perform(self, instruction, control_flag):
         """Acquire a task, perform it and update its status accordingly."""
-        
+
         # Parse the instruction to transactionally
         # get-the-task-and-incr-its-retry-count. This ensures that even if the
         # next instruction off the queue is for the same task, or if a parallel
@@ -95,7 +95,7 @@ class TaskPerformer(object):
             logger.warn(err)
         if not task_data:
             return
-        
+
         # Unpack the task data.
         url = task_data['url']
         body = task_data['body']
@@ -126,7 +126,7 @@ class TaskPerformer(object):
                 response = greenlet.value
                 break
             delay = backoff.exponential(1.5) # 0.15, 0.225, 0.3375, ... 2
-        
+
         # If we didn't get a response, or if the response was not successful,
         # reschedule it. Note that rescheduling *accelerates* the due date --
         # doing nothing here would leave the task to be retried anyway, as its
@@ -141,4 +141,3 @@ class TaskPerformer(object):
         else:
             status = task_manager.complete()
         return status
-    

@@ -31,33 +31,30 @@ DEFAULTS = {
 
 class Bootstrap(object):
     """Bootstrap Pyramid dependencies and return the configured registry."""
-    
+
     def __init__(self, **kwargs):
         self.configurator_cls = kwargs.get('configurator_cls', Configurator)
         self.default_settings = kwargs.get('default_settings', DEFAULTS)
         self.session = kwargs.get('session', model.Session)
-    
+
     def __call__(self, **kwargs):
         """Configure and patch, making sure to explicitly close any connections
           opened by the thread local session.
         """
-        
+
         # Unpack settings.
         config = self.configurator_cls(**kwargs)
         settings = config.get_settings()
         for key, value in self.default_settings.items():
             settings.setdefault('ntorque.{0}'.format(key), value)
-        
+
         # Configure redis and the db connection.
         config.include('ntorque.model')
         config.include('pyramid_redis')
         config.commit()
-        
+
         # Explicitly remove any db connections.
         self.session.remove()
-        
-        # Return the registry (the only part of the "environment" we're
-        # interested in).
-        return config
-    
 
+        # Return the configurator instance.
+        return config
