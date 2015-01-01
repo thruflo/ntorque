@@ -8,19 +8,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 import os
-
-from sqlalchemy import engine_from_config
+from pyramid_basemodel import includeme as include_basemodel
 
 from .api import *
 from .constants import *
 from .orm import *
 
 DEFAULTS = {
-    'max_overflow': os.environ.get('DATABASE_MAX_OVERFLOW', 3),
-    'pool_size': os.environ.get('DATABASE_POOL_SIZE', 3),
-    'pool_recycle': os.environ.get('DATABASE_POOL_RECYCLE', 300),
+    'max_overflow': os.environ.get('SQLALCHEMY_MAX_OVERFLOW'),
+    'pool_class': os.environ.get('SQLALCHEMY_POOL_CLASS'),
+    'pool_size': os.environ.get('SQLALCHEMY_POOL_SIZE'),
+    'pool_recycle': os.environ.get('SQLALCHEMY_POOL_RECYCLE'),
     'url': os.environ.get('DATABASE_URL', 'postgresql:///ntorque'),
 }
+DEFAULT_INTS = ('max_overflow', 'pool_size', 'pool_recycle')
 
 class IncludeMe(object):
     """Configure the db engine and provide ``request.db_session``."""
@@ -28,27 +29,29 @@ class IncludeMe(object):
     def __init__(self, **kwargs):
         self.base = kwargs.get('base', Base)
         self.default_settings = kwargs.get('default_settings', DEFAULTS)
-        self.engine_factory = kwargs.get('engine_factory', engine_from_config)
+        self.default_ints = kwargs.get('default_ints', DEFAULT_INTS)
+        self.include_basemodel = kwargs.get('include_basemodel', include_basemodel)
         self.session_cls = kwargs.get('session_cls', Session)
     
     def __call__(self, config):
-        """"""
-        
+        """Read any env var configuration into the Pyramid settings and then
+          use the pyramid_basemodel includeme function to create and bind the
+          db engine, and then add a reified ``request.db_session`` property.
+        """
+
         # Unpack settings.
         settings = config.get_settings()
         for key, value in self.default_settings.items():
-            settings.setdefault('sqlalchemy.{0}'.format(key), value)
-        
-        # Create db engine.
-        engine = self.engine_factory(settings, 'sqlalchemy.')
-        
-        # Bind session and declarative base to the db engine.
-        self.session_cls.configure(bind=engine)
-        self.base.metadata.bind = engine
-        
+            if value:
+                if key in self.default_ints:
+                    value = int(value)
+                settings.setdefault('sqlalchemy.{0}'.format(key), value)
+
+        # Create and bind using the basemodel configuration.
+        self.include_basemodel(config)
+
         # Provide ``request.db_session``.
         get_session = lambda request: self.session_cls()
         config.add_request_method(get_session, 'db_session', reify=True)
     
-
 includeme = IncludeMe().__call__

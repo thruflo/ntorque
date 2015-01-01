@@ -232,15 +232,19 @@ Redis:
 
 Database:
 
-* `DATABASE_URL` etc.: your [database configuration string][], defaults
-  to `postgresql:///ntorque`
-* other db config options are `DATABASE_MAX_OVERFLOW`, `DATABASE_POOL_SIZE` and
-  `DATABASE_POOL_RECYCLE`
+* `DATABASE_URL`, defaults to `postgresql:///ntorque`
+* `SQLALCHEMY_MAX_OVERFLOW`, `SQLALCHEMY_POOL_CLASS`, `SQLALCHEMY_POOL_SIZE` and
+  `SQLALCHEMY_POOL_RECYCLE` -- see the SQLAlchemy docs on [engine configuration][]
+  and [pyramid_basemodel][] for more information; if you don't provide these
+  then SQLAlchemy will use sensible defaults, also note that if you're using
+  [pgbouncer][] you should set `SQLALCHEMY_POOL_CLASS=sqlalchemy.pool.NullPool`
 
-[database configuration string]: http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html
+[engine configuration]: http://docs.sqlalchemy.org/en/rel_0_9/core/engines.html
 [gunicorn]: http://gunicorn.org
 [hsts]: http://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
 [newrelic]: https://addons.heroku.com/newrelic
+[pgbouncer]: https://wiki.postgresql.org/wiki/PgBouncer
+[pyramid_basemodel]: https://github.com/thruflo/pyramid_basemodel
 [pyramid_hsts]: https://github.com/thruflo/pyramid_hsts
 [pyramid_redis]: https://github.com/thruflo/pyramid_redis
 
