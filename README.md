@@ -18,7 +18,7 @@ endpoint = os.environ.get('NTORQUE_URL')
 response = requests.post(endpoint, data=data, params=params)
 ```
 
-[nTorque]: http://documentup.com/thruflo/ntorque
+[nTorque]: http://ntorque.com
 [web hooks]: http://timothyfitz.com/2009/02/09/what-webhooks-are-and-why-you-should-care/
 [released into the public domain]: http://unlicense.org/UNLICENSE
 
