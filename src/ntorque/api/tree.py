@@ -9,17 +9,6 @@ __all__ = [
 
 import logging
 logger = logging.getLogger(__name__)
-logger.warn(
-    """
-  
-    It's much simpler to use a named `tasks` route for the api endpoints
-    than to hardcode the tasks key in the api root and to hack the faux
-    root onto the tasks model -- i.e.: just generate the urls using
-    ``request.route_path('tasks', ...)``.
-    
-    
-    """
-)
 
 import re
 VALID_INT = re.compile(r'^[0-9]+$')
