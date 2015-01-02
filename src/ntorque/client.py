@@ -8,13 +8,21 @@
 
   For example, instantiate a client::
 
-      >>> dispatcher = DirectDispatcher()
-      >>> client = HTTPTorqueClient(dispatcher, 'https://example.com/torque')
+      dispatcher = DirectDispatcher()
+      client = HTTPTorqueClient(dispatcher, 'https://example.com/torque')
 
   Call it to dispatch a task::
 
-      response_data, status = client('https://example.com/hook', data={})
-  
+      url = 'https://example.com/hook'
+      status, response_data, response_headers = client(url)
+
+  Note that you must encode your data manually before passing to the client.
+  For example, to post JSON::
+
+      data = {'foo': u'bar'}
+      headers = {'Content-Type': u'application/json; utf-8'}
+      client(url, data=json.dumps(data), headers=headers)
+
 """
 
 __all__ = [
@@ -43,10 +51,10 @@ SUCCESS = u'DISPATCHED'
 FAILED = u'FAILED ({0})'
 
 class NoopDispatcher(object):
-    """A dispatcher that doesn't do anything. Useful for ftesting."""
+    """A dispatcher that doesn't do anything."""
 
     def __call__(self, url, post_data, headers):
-        return None, SUCCESS
+        return SUCCESS, None, None
 
 class DirectDispatcher(object):
     """Dispatch an HTTP request and then wait for and handle the response."""
@@ -67,12 +75,6 @@ class DirectDispatcher(object):
     def handle(self, response):
         """Unpack  the ``response`` into ``data, status``."""
 
-        # Get the response data.
-        try:
-            data = response.json()
-        except ValueError:
-            data = response.text
-
         # Get the response status.
         status = SUCCESS
         try:
@@ -80,8 +82,17 @@ class DirectDispatcher(object):
         except requests.exceptions.RequestException:
             status = FAILED.format(response.status_code)
         
+        # Get the response data.
+        try:
+            data = response.json()
+        except (AttributeError, TypeError, ValueError):
+            data = response.text
+
+        # And the headers.
+        headers = response.headers
+
         # Return.
-        return data, status
+        return status, data, headers
 
 class AfterCommitDispatcher(object):
     """Hang HTTP dispatch off a ``pyramid_weblayer.tx`` commit hook."""
@@ -100,7 +111,7 @@ class AfterCommitDispatcher(object):
         self.after_commit(dispatch)
 
         # Don't wait around for the response.
-        return None, SUCCESS
+        return SUCCESS, None, None
 
 class HTTPTorqueClient(object):
     """Enqueue nTorque tasks using the HTTP `POST /` api."""
@@ -117,6 +128,10 @@ class HTTPTorqueClient(object):
         dispatch = self.dispatcher
         torque_url = self.torque_url
         torque_api_key = self.torque_api_key
+
+        # Validate the POST data.
+        if data is not None and not isinstance(data, basestring):
+            raise ValueError('Encode your post data as a string')
 
         # Prepare and augment the headers.
         if headers is None:
@@ -173,6 +188,10 @@ class HybridTorqueClient(object):
         app_id = self.app_id
         header_prefix = self.header_prefix
         
+        # Validate the POST data.
+        if data is not None and not isinstance(data, basestring):
+            raise ValueError('Encode your post data as a string')
+
         # Prepare and extract any pass through headers.
         passthrough_headers = {}
         for key in headers.keys():
@@ -212,11 +231,11 @@ class HybridTorqueClient(object):
         # Unpack.
         dispatch = self.dispatcher
         torque_url = self.torque_url
-        torque_api_key = self.torque_api_key
+        api_key = self.api_key
 
         # Authenticate if necessary.
-        if torque_api_key:
-            headers['TORQUE_API_KEY'] = torque_api_key
+        if api_key:
+            headers['TORQUE_API_KEY'] = api_key
 
         # Build the url.
         url = self.join_path(torque_url, 'tasks', str(task.id), 'push')
