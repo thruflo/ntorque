@@ -116,10 +116,10 @@ class AfterCommitDispatcher(object):
 class HTTPTorqueClient(object):
     """Enqueue nTorque tasks using the HTTP `POST /` api."""
 
-    def __init__(self, dispatcher, torque_url, torque_api_key=None):
+    def __init__(self, dispatcher, torque_url, api_key=None, **kwargs):
         self.dispatcher = dispatcher
         self.torque_url = torque_url
-        self.torque_api_key = torque_api_key
+        self.api_key = api_key
 
     def __call__(self, url, data=None, headers=None, method=None, timeout=None):
         """Patch the api key into a POST request to the url."""
@@ -127,7 +127,7 @@ class HTTPTorqueClient(object):
         # Unpack.
         dispatch = self.dispatcher
         torque_url = self.torque_url
-        torque_api_key = self.torque_api_key
+        api_key = self.api_key
 
         # Validate the POST data.
         if data is not None and not isinstance(data, basestring):
@@ -136,8 +136,8 @@ class HTTPTorqueClient(object):
         # Prepare and augment the headers.
         if headers is None:
             headers = {}
-        if torque_api_key:
-            headers['TORQUE_API_KEY'] = torque_api_key
+        if api_key:
+            headers['TORQUE_API_KEY'] = api_key
 
         # Build a dict of query params.
         query = {'url': url}
