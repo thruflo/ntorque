@@ -3,7 +3,7 @@ python:
   - "2.7"
 
 env:
-  - TEST_DATABASE_URL=postgresql://postgres@localhost:5432/ntorque_test
+  - DATABASE_URL=postgresql://postgres@localhost:5432/ntorque_test
 
 services:
   - redis-server

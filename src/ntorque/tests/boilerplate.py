@@ -24,8 +24,8 @@ TEST_SETTINGS = {
     'redis.db': 5,
     'redis.url': 'redis://localhost:6379',
     'basemodel.should_bind_engine': False,
-    'sqlalchemy.url': os.environ.get('TEST_DATABASE_URL',
-            u'postgresql:///ntorque_test'),
+    'sqlalchemy.url': os.environ.get('TEST_DATABASE_URL', os.environ.get(
+            'DATABASE_URL', u'postgresql:///ntorque_test')),
     'ntorque.mode': 'testing',
     'ntorque.redis_channel': 'ntorque:testing',
 }
