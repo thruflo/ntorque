@@ -57,7 +57,7 @@ class WebTestPoster(object):
         self.app = app
         self.adapter = kwargs.get('adapter', WebTestResponseAdapter)
 
-    def __call__(self, url, data, headers):
+    def __call__(self, url, data, headers, method='POST'):
         """Use ``self.app`` to make the request."""
 
         # Unpack.
@@ -66,8 +66,11 @@ class WebTestPoster(object):
 
         # Convert the url to a path with query string so,
         # e.g.: `http://localhost/foo?url=...` becomes `/foo?url=...`.
-        parts = url.split('localhost')
-        path = '/' if len(parts) == 1 else '/'.join(parts[1:])
+        path = '/' if 'http://localhost' in url else url
+        parts = url.split('http://localhost')
+        if len(parts) > 1:
+            path += '/'.join(parts[1:])
+        path = path.replace('//', '/')
 
         # Prepare the post.
         kwargs = dict(headers=headers, expect_errors=True)
@@ -75,7 +78,8 @@ class WebTestPoster(object):
             kwargs['params'] = data
 
         # Return the adapted response.
-        return response_adapter(app.post(path, **kwargs))
+        make_request = getattr(app, method.lower())
+        return response_adapter(make_request(path, **kwargs))
 
 class TestDispatch(unittest.TestCase):
     """Test the HTTP client with a direct dispatcher."""
