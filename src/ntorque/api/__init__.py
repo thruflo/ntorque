@@ -90,4 +90,4 @@ class WSGIAppFactory(object):
 
 # Provide a ``main`` wsgi app entrypoint.
 factory = WSGIAppFactory()
-main = factory(None)
+main = factory(None).__call__
