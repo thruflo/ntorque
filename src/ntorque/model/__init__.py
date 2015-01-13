@@ -8,7 +8,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 import os
-from pyramid_basemodel import includeme as include_basemodel
 
 from .api import *
 from .constants import *
@@ -30,7 +29,6 @@ class IncludeMe(object):
         self.base = kwargs.get('base', Base)
         self.default_settings = kwargs.get('default_settings', DEFAULTS)
         self.default_ints = kwargs.get('default_ints', DEFAULT_INTS)
-        self.include_basemodel = kwargs.get('include_basemodel', include_basemodel)
         self.session_cls = kwargs.get('session_cls', Session)
     
     def __call__(self, config):
@@ -48,7 +46,7 @@ class IncludeMe(object):
                 settings.setdefault('sqlalchemy.{0}'.format(key), value)
 
         # Create and bind using the basemodel configuration.
-        self.include_basemodel(config)
+        config.include('pyramid_basemodel')
 
         # Provide ``request.db_session``.
         get_session = lambda request: self.session_cls()

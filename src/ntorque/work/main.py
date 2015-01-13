@@ -21,7 +21,8 @@ logging.basicConfig()
 
 import os
 from pyramid.config import Configurator
-from ntorque import model
+
+import pyramid_basemodel as model
 
 DEFAULTS = {
     'mode': os.environ.get('MODE', 'development'),
