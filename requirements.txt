@@ -10,11 +10,11 @@ gevent==1.0.1
 
 # App Framework
 pyramid==1.5.2
-pyramid-basemodel==0.3
+pyramid-basemodel==0.3.1
 pyramid-hsts==1.2.2
 pyramid-redis==0.1.4
 pyramid-tm==0.7
-pyramid-weblayer==0.13.1
+pyramid-weblayer==0.13.2
 
 # Database.
 psycopg2==2.5.3
