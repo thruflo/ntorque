@@ -3,9 +3,11 @@
 """Gunicorn configuration."""
 
 import logging
-import os
 import signal
-import sys    
+import sys
+
+# Import `os` below `sys` -- see http://stackoverflow.com/a/13905449
+import os
 
 import gevent
 import gevent.monkey
