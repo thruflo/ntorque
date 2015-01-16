@@ -166,6 +166,9 @@ class TestDispatch(unittest.TestCase):
         with transaction.manager:
             cli('http://example.com/hook')
 
+        # Wait a moment.
+        time.sleep(0.1)
+
         # Assert that the task is in the database.
         with transaction.manager:
             task = lookup(task_id)

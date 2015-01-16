@@ -8,8 +8,8 @@ __all__ = [
     'ChannelConsumer',
 ]
 
-from .main import gevent_monkey_patch
-gevent_monkey_patch()
+from . import patch
+patch.green_threads()
 
 import logging
 logger = logging.getLogger(__name__)
@@ -72,7 +72,6 @@ class ChannelConsumer(object):
         handler = self.handler_cls()
         thread = self.thread_cls(target=handler, args=args)
         thread.start()
-    
 
 class ConsoleScript(object):
     """Bootstrap the environment and run the consumer."""
@@ -103,5 +102,4 @@ class ConsoleScript(object):
         finally:
             self.session.remove()
     
-
 main = ConsoleScript()

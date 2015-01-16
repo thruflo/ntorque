@@ -8,8 +8,8 @@ __all__ = [
     'TaskPerformer',
 ]
 
-from .main import gevent_monkey_patch
-gevent_monkey_patch()
+from . import patch
+patch.green_threads()
 
 import logging
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class MakeRequest(object):
         self.make_request = kwargs.get('make_request', requests.request)
         self.request_exc = kwargs.get('request_exc', RequestException)
         self.sock_timeout = kwargs.get('sock_timeout', socket.timeout)
-
+    
     def __call__(self, *args, **kwargs):
         """Make the request and log at the appropriate level for the response."""
 
@@ -73,7 +73,7 @@ class TaskPerformer(object):
         self.session = kwargs.get('session', model.Session)
         self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
-
+    
     def __call__(self, instruction, control_flag):
         """Perform a task and close any db connections."""
 
