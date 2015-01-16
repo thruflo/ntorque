@@ -6,8 +6,8 @@ __all__ = [
     'Cleaner',
 ]
 
-from .main import gevent_monkey_patch
-gevent_monkey_patch()
+from . import patch
+patch.green_threads()
 
 import logging
 logger = logging.getLogger(__name__)

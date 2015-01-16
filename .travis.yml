@@ -15,5 +15,4 @@ before_script:
   - "psql -c 'create database ntorque_test;' -U postgres"
 
 script:
-  - "nosetests --verbose --with-doctest --exclude-dir src/ntorque/tests ntorque"
-  - "nosetests --verbose ntorque"
+  - "nosetests --verbose --with-doctest ntorque"
