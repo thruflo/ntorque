@@ -68,7 +68,6 @@ class RequeuePoller(object):
         
         instruction = '{0}:{1}'.format(task.id, task.retry_count)
         self.redis.rpush(self.channel, instruction)
-    
 
 class ConsoleScript(object):
     """Bootstrap the environment and run the consumer."""
@@ -101,6 +100,5 @@ class ConsoleScript(object):
             poller.start()
         finally:
             self.session.remove()
-    
 
 main = ConsoleScript()
