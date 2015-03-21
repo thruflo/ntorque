@@ -138,6 +138,7 @@ class HTTPTorqueClient(object):
             headers = {}
         if api_key:
             headers['TORQUE_API_KEY'] = api_key
+            headers['NTORQUE_API_KEY'] = api_key
 
         # Build a dict of query params.
         query = {'url': url}
@@ -236,6 +237,7 @@ class HybridTorqueClient(object):
         # Authenticate if necessary.
         if api_key:
             headers['TORQUE_API_KEY'] = api_key
+            headers['NTORQUE_API_KEY'] = api_key
 
         # Build the url.
         url = self.join_path(torque_url, 'tasks', str(task.id), 'push')
