@@ -17,12 +17,21 @@ logger = logging.getLogger(__name__)
 import gevent
 import requests
 import socket
+import os
 
 from requests.exceptions import RequestException
 from sqlalchemy.exc import SQLAlchemyError
 
 from ntorque import backoff
 from ntorque import model
+
+# Get HTTP codes from env variables.
+DEFAULT_HTTP_CODES = {
+    'fail': os.environ.get('NTORQUE_HTTP_FAIL_CODES', 
+                    ','.join(str(i) for i in range(202, 409))),
+    'reschedule': os.environ.get('NTORQUE_HTTP_RESCHEDULE_CODES', 
+                    ','.join(str(i) for i in range(410, 599))),
+}
 
 class MakeRequest(object):
     """Wrap ``requests.request`` with some instrumentation."""
@@ -69,11 +78,15 @@ class TaskPerformer(object):
     def __init__(self, **kwargs):
         self.task_manager_cls = kwargs.get('task_manager_cls', model.TaskManager)
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
+        self.http_fail_codes = kwargs.get('http_fail_codes',
+                           DEFAULT_HTTP_CODES.get('fail'))
+        self.http_reschedule_codes = kwargs.get('http_reschedule_codes',
+                           DEFAULT_HTTP_CODES.get('reschedule'))
         self.make_request = kwargs.get('make_request', MakeRequest())
         self.session = kwargs.get('session', model.Session)
         self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
-    
+
     def __call__(self, instruction, control_flag):
         """Perform a task and close any db connections."""
 
@@ -84,6 +97,10 @@ class TaskPerformer(object):
 
     def perform(self, instruction, control_flag):
         """Acquire a task, perform it and update its status accordingly."""
+
+        # Unpack http codes and transform into an int list.
+        http_reschedule_codes = map(int, self.http_reschedule_codes.split(','))
+        http_fail_codes = map(int, self.http_fail_codes.split(','))
 
         # Parse the instruction to transactionally
         # get-the-task-and-incr-its-retry-count. This ensures that even if the
@@ -134,12 +151,12 @@ class TaskPerformer(object):
         # reschedule it. Note that rescheduling *accelerates* the due date --
         # doing nothing here would leave the task to be retried anyway, as its
         # due date was set when the task was aquired.
-        if response is None or response.status_code > 499:
+        if response is None or (response.status_code in http_reschedule_codes):
             # XXX what we could also do here are:
             # - set a more informative status flag (even if only descriptive)
             # - noop if the greenlet request timed out
             status = task_manager.reschedule()
-        elif response.status_code > 201:
+        elif response.status_code in http_fail_codes:
             status = task_manager.fail()
         else:
             status = task_manager.complete()

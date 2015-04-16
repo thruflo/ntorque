@@ -60,14 +60,14 @@ class TestTaskPerformer(unittest.TestCase):
         from ntorque.model import CreateTask
         from ntorque.model import Session
         from ntorque.work.perform import TaskPerformer
-        
+
         # Create a task.
         req = Request.blank('/')
         create_task = CreateTask(req)
         with transaction.manager:
             task = create_task(None, 'http://example.com', 20, u'POST')
             instruction = '{0}:0'.format(task.id)
-        
+
         # Instantiate a performer with the requests.post method mocked
         # to return 200 without making a request.
         mock_make_request = Mock()
@@ -99,7 +99,7 @@ class TestTaskPerformer(unittest.TestCase):
         with transaction.manager:
             task = create_task(None, 'http://example.com', 20, u'POST')
             instruction = '{0}:0'.format(task.id)
-        
+
         # Instantiate a performer with the requests.post method mocked
         # to raise a connection error.
         mock_make_request = Mock()
@@ -168,8 +168,62 @@ class TestTaskPerformer(unittest.TestCase):
         mock_make_request.return_value.status_code = 400
         performer = TaskPerformer(make_request=mock_make_request)
         
-        # The task should be pending a retry.
+        # The task should have failed status.
         status = performer(instruction, flag)
+        self.assertTrue(status is TASK_STATUSES[u'failed'])
+
+    def test_performing_tasks_different_http_status_codes(self):
+        """Tasks should behave according to status codes configs."""
+
+        from mock import Mock
+        from pyramid.request import Request
+        from threading import Event
+        flag = Event()
+        flag.set()
+
+        from ntorque.model import TASK_STATUSES
+        from ntorque.model import CreateTask
+        from ntorque.model import Session
+        from ntorque.work.perform import TaskPerformer
+
+        # Create three tasks.
+        req = Request.blank('/')
+        create_task = CreateTask(req)
+        with transaction.manager:
+            task_one = create_task(None, 'http://example.com', 20, u'POST')
+            instruction_one = '{0}:0'.format(task_one.id)
+            task_two = create_task(None, 'http://example.com', 20, u'POST')
+            instruction_two = '{0}:0'.format(task_two.id)
+            task_three = create_task(None, 'http://example.com', 20, u'POST')
+            instruction_three = '{0}:0'.format(task_three.id)
+
+        # Instantiate a performer with the requests.post method mocked
+        # to raise a connection error.
+        mock_make_request = Mock()
+        mock_make_request.return_value.status_code = 400
+        performer = TaskPerformer(make_request=mock_make_request)
+
+        # The task should have failed status.
+        status = performer(instruction_one, flag)
+        self.assertTrue(status is TASK_STATUSES[u'failed'])
+
+        # Now let's instantiate a performer with 400 as a reschedule code.
+        performer = TaskPerformer(make_request=mock_make_request,
+                                  http_reschedule_codes='400')
+
+        # Now the task should be pending a retry.
+        status = performer(instruction_two, flag)
+        self.assertTrue(status is TASK_STATUSES[u'pending'])
+
+        # Now let's instantiate a performer with 500 as a failed code.
+        mock_make_request = Mock()
+        mock_make_request.return_value.status_code = 500
+        performer = TaskPerformer(make_request=mock_make_request,
+                                  http_fail_codes='500',
+                                  http_reschedule_codes='400')
+
+        # Now the task should be pending a retry.
+        status = performer(instruction_three, flag)
         self.assertTrue(status is TASK_STATUSES[u'failed'])
     
     def test_performing_task_with_method(self):
