@@ -208,6 +208,7 @@ Algorithm / Behaviour:
   to `36`
 * `NTORQUE_REQUEUE_INTERVAL`: how often, in seconds, to poll the database for
   tasks to requeue -- defaults to 5
+* `NTORQUE_TRANSIENT_REQUEST_ERRORS`: 4xx errors which ntorque should retry -- defaults to '408,423,429,449'
 
 Deployment:
 

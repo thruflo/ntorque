@@ -25,13 +25,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from ntorque import backoff
 from ntorque import model
 
-# Get HTTP codes from env variables.
-DEFAULT_HTTP_CODES = {
-    'fail': os.environ.get('NTORQUE_HTTP_FAIL_CODES', 
-                    ','.join(str(i) for i in range(202, 409))),
-    'reschedule': os.environ.get('NTORQUE_HTTP_RESCHEDULE_CODES', 
-                    ','.join(str(i) for i in range(410, 599))),
-}
+# Configurable transient request errors.
+TRANSIENT_REQUEST_ERRORS = os.environ.get('NTORQUE_TRANSIENT_REQUEST_ERRORS',
+                                                '408,423,429,449')
 
 class MakeRequest(object):
     """Wrap ``requests.request`` with some instrumentation."""
@@ -78,14 +74,11 @@ class TaskPerformer(object):
     def __init__(self, **kwargs):
         self.task_manager_cls = kwargs.get('task_manager_cls', model.TaskManager)
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
-        self.http_fail_codes = kwargs.get('http_fail_codes',
-                           DEFAULT_HTTP_CODES.get('fail'))
-        self.http_reschedule_codes = kwargs.get('http_reschedule_codes',
-                           DEFAULT_HTTP_CODES.get('reschedule'))
         self.make_request = kwargs.get('make_request', MakeRequest())
         self.session = kwargs.get('session', model.Session)
         self.sleep = kwargs.get('sleep', gevent.sleep)
         self.spawn = kwargs.get('spawn', gevent.spawn)
+        self.transient_errors = kwargs.get('transient_errors',TRANSIENT_REQUEST_ERRORS)
 
     def __call__(self, instruction, control_flag):
         """Perform a task and close any db connections."""
@@ -99,8 +92,7 @@ class TaskPerformer(object):
         """Acquire a task, perform it and update its status accordingly."""
 
         # Unpack http codes and transform into an int list.
-        http_reschedule_codes = map(int, self.http_reschedule_codes.split(','))
-        http_fail_codes = map(int, self.http_fail_codes.split(','))
+        http_transient_request_errors = map(int, self.transient_errors.split(','))
 
         # Parse the instruction to transactionally
         # get-the-task-and-incr-its-retry-count. This ensures that even if the
@@ -151,13 +143,14 @@ class TaskPerformer(object):
         # reschedule it. Note that rescheduling *accelerates* the due date --
         # doing nothing here would leave the task to be retried anyway, as its
         # due date was set when the task was aquired.
-        if response is None or (response.status_code in http_reschedule_codes):
+        code = response and response.status_code or 500
+        if code < 202:
+            status = task_manager.complete()
+        elif code > 499 or code in http_transient_request_errors:
             # XXX what we could also do here are:
             # - set a more informative status flag (even if only descriptive)
             # - noop if the greenlet request timed out
             status = task_manager.reschedule()
-        elif response.status_code in http_fail_codes:
-            status = task_manager.fail()
         else:
-            status = task_manager.complete()
+            status = task_manager.fail()
         return status
