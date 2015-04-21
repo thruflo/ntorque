@@ -143,7 +143,10 @@ class TaskPerformer(object):
         # reschedule it. Note that rescheduling *accelerates* the due date --
         # doing nothing here would leave the task to be retried anyway, as its
         # due date was set when the task was aquired.
-        code = response and response.status_code or 500
+        if response is None:
+            code = 500
+        else:
+            code = response.status_code
         if code < 202:
             status = task_manager.complete()
         elif code > 499 or code in http_transient_request_errors:
