@@ -247,6 +247,40 @@ class TestTaskPerformer(unittest.TestCase):
         performer(instruction, flag)
         self.assertTrue(mock_make_request.call_args_list[0][0][0] == u'PUT')
 
+    def test_performing_task_adds_ntorque_task_headers(self):
+        """Task requests have ntorque-task-* headers."""
+
+        from mock import Mock
+        from pyramid.request import Request
+        from threading import Event
+        flag = Event()
+        flag.set()
+
+        from ntorque.model import CreateTask
+        from ntorque.work.perform import TaskPerformer
+
+        # Create a POST task.
+        req = Request.blank('/')
+        create_task = CreateTask(req)
+        with transaction.manager:
+            task = create_task(None, 'http://example.com', 20, u'POST')
+            instruction = '{0}:0'.format(task.id)
+
+        # Perform it.
+        mock_make_request = Mock()
+        performer = TaskPerformer(make_request=mock_make_request)
+        performer(instruction, flag)
+
+        # Assert that make_request was called with the ntorque-task-* headers.
+        keys = (
+            u'ntorque-task-id',
+            u'ntorque-task-retry-count',
+            u'ntorque-task-retry-limit',
+        )
+        headers = mock_make_request.call_args_list[0][1].get('headers', {})
+        for item in keys:
+            self.assertTrue(headers.has_key(item))
+
     def test_performing_task_waits(self):
         """Performing a task exponentially backs off polling the greenlet
           to see whether it has completed.

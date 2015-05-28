@@ -115,6 +115,10 @@ class TaskPerformer(object):
         headers = task_data['headers']
         headers['content-type'] = '{0}; charset={1}'.format(
                 task_data['enctype'], task_data['charset'])
+        headers['ntorque-task-id'] = task_id
+        headers['ntorque-task-retry-count'] = retry_count
+        max_retries = task_manager.due_factory.settings['max_retries']
+        headers['ntorque-task-retry-limit'] = max_retries
         method = task_data['method']
 
         # Spawn a POST to the web hook in a greenlet -- so we can monitor
