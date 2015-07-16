@@ -39,3 +39,6 @@ WebTest==2.0.7
 # Utils.
 bpython==0.12
 requests==2.3.0
+
+# XXX for the JSON rendering.
+-e git+https://github.com/opendesk/winnow.git#egg=winnow

@@ -46,6 +46,8 @@ class IncludeMe(object):
                 settings.setdefault('sqlalchemy.{0}'.format(key), value)
 
         # Create and bind using the basemodel configuration.
+        # XXX with the Opendesk specific winnow json utils o_O.
+        config.include('ntorque.json_utils')
         config.include('pyramid_basemodel')
 
         # Provide ``request.db_session``.
