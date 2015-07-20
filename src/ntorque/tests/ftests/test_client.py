@@ -17,7 +17,6 @@ import unittest
 
 from ntorque.model import api as repo
 from ntorque.model import constants
-from ntorque.tests import boilerplate
 
 from ntorque import client
 
@@ -85,6 +84,7 @@ class TestDispatch(unittest.TestCase):
     """Test the HTTP client with a direct dispatcher."""
 
     def setUp(self):
+        from ntorque.tests import boilerplate
         self.app_factory = boilerplate.TestAppFactory()
     
     def tearDown(self):

@@ -14,7 +14,6 @@ except ImportError: #pragma: no cover
 
 import os
 
-from ntorque import api
 from ntorque import model
 from ntorque.work import main as work
 
@@ -34,6 +33,7 @@ class TestAppFactory(object):
     """Callable utility that returns a testable WSGI app and manages db state."""
 
     def __init__(self, **kwargs):
+        from ntorque import api
         self.app_factory = kwargs.get('app_factory', api.WSGIAppFactory())
         self.base = kwargs.get('base', model.Base)
         self.json_method = kwargs.get('get_json', webtest.utils.json_method)
