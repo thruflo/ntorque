@@ -37,7 +37,7 @@ class MakeRequest(object):
         self.make_request = kwargs.get('make_request', requests.request)
         self.request_exc = kwargs.get('request_exc', RequestException)
         self.sock_timeout = kwargs.get('sock_timeout', socket.timeout)
-    
+
     def __call__(self, *args, **kwargs):
         """Make the request and log at the appropriate level for the response."""
 
@@ -161,4 +161,11 @@ class TaskPerformer(object):
             status = task_manager.reschedule()
         else:
             status = task_manager.fail()
+
+        # Logging to be possible to follow events in production.
+        self.log.info(
+            ('NTORQUE Task info ',
+                'status: ', status,
+                'headers: ', self.headers,
+                'body: ', self.body))
         return status
