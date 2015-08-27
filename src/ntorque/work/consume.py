@@ -30,7 +30,7 @@ class ChannelConsumer(object):
       function in a new thread, passing through a flag that the handle
       function can periodically check to exit.
     """
-    
+
     def __init__(self, redis, channels, delay=0.001, timeout=10, **kwargs):
         self.redis = redis
         self.channels = channels
@@ -41,7 +41,7 @@ class ChannelConsumer(object):
         self.sleep = kwargs.get('sleep', time.sleep)
         self.thread_cls = kwargs.get('thread_cls', threading.Thread)
         self.flag_cls = kwargs.get('flag_cls', threading.Event)
-    
+
     def start(self):
         self.control_flag = self.flag_cls()
         self.control_flag.set()
@@ -49,10 +49,10 @@ class ChannelConsumer(object):
             self.consume()
         finally:
             self.control_flag.clear()
-    
+
     def consume(self):
         """Consume the redis channel ad-infinitum."""
-        
+
         while True:
             try:
                 return_value = self.redis.blpop(self.channels, timeout=self.timeout)
@@ -64,10 +64,10 @@ class ChannelConsumer(object):
                     channel, data = return_value
                     self.spawn(data)
                     self.sleep(self.connect_delay)
-    
+
     def spawn(self, data):
         """Handle the ``data`` in a new thread."""
-        
+
         args = (data, self.control_flag)
         handler = self.handler_cls()
         thread = self.thread_cls(target=handler, args=args)

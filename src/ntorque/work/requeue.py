@@ -35,13 +35,13 @@ class RequeuePoller(object):
         self.logger = kwargs.get('logger', logger)
         self.session = kwargs.get('session', model.Session)
         self.time = kwargs.get('time', time)
-    
+
     def start(self):
         self.poll()
-    
+
     def poll(self):
         """Poll the db ad-infinitum."""
-        
+
         while True:
             t1 = self.time.time()
             try:
@@ -62,30 +62,30 @@ class RequeuePoller(object):
             due_time = t1 + self.interval
             if current_time < due_time:
                 self.time.sleep(due_time - current_time)
-    
+
     def enqueue(self, task):
         """Push an instruction to re-try the task on the redis channel."""
-        
+
         instruction = '{0}:{1}'.format(task.id, task.retry_count)
         self.redis.rpush(self.channel, instruction)
 
 class ConsoleScript(object):
     """Bootstrap the environment and run the consumer."""
-    
+
     def __init__(self, **kwargs):
         self.requeue_cls = kwargs.get('requeue_cls', RequeuePoller)
         self.get_redis = kwargs.get('get_redis', RedisFactory())
         self.get_config = kwargs.get('get_config', Bootstrap())
         self.session = kwargs.get('session', model.Session)
-    
+
     def __call__(self):
         """Get the configured registry. Unpack the redis client and input
           channel(s), instantiate and start the consumer.
         """
-        
+
         # Get the configured registry.
         config = self.get_config()
-        
+
         # Unpack the redis client and input channels.
         settings = config.registry.settings
         redis_client = self.get_redis(settings, registry=config.registry)

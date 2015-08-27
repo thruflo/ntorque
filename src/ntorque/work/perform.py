@@ -37,7 +37,7 @@ class MakeRequest(object):
         self.make_request = kwargs.get('make_request', requests.request)
         self.request_exc = kwargs.get('request_exc', RequestException)
         self.sock_timeout = kwargs.get('sock_timeout', socket.timeout)
-    
+
     def __call__(self, *args, **kwargs):
         """Make the request and log at the appropriate level for the response."""
 
