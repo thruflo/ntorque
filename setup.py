@@ -14,7 +14,7 @@ setup(
         'License :: Public Domain',
         'Programming Language :: Python :: 2.7',
     ],
-    license = open('UNLICENSE').read(),
+    license = 'http://unlicense.org',
     packages = find_packages('src'),
     package_dir = {'': 'src'},
     include_package_data = True,
