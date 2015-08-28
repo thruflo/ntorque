@@ -32,7 +32,6 @@ def installed_view(object):
 
     return u'Torque installed and reporting for duty, sir!'
 
-
 @view_config(context=tree.APIRoot, permission='create', request_method='POST',
         renderer='string')
 class EnqueTask(object):
@@ -88,7 +87,6 @@ class EnqueTask(object):
         response.headers['Location'] = request.resource_url(task)[:-1]
         return ''
 
-
 @view_config(context=model.Task, permission='view', request_method='GET',
         renderer='json')
 class TaskStatus(object):
@@ -107,7 +105,6 @@ class TaskStatus(object):
         # Return a 200 response with a JSON repr of the task.
         return task
 
-
 @view_config(context=model.Task, name='push', permission='view',
         request_method='POST', renderer='json')
 class PushTask(object):
@@ -120,23 +117,15 @@ class PushTask(object):
     def __call__(self):
         """Push the task onto the queue."""
 
-        logger.warn('PushTask')
-        logger.warn(self.request)
-
         # Unpack.
         request = self.request
         task = request.context
 
-        logger.warn(task)
-
         # Notify.
         self.push_notify(task)
-
-        logger.warn('ere')
 
         # Return a 201 response with the task url as the Location header.
         response = request.response
         response.status_int = 201
         response.headers['Location'] = request.resource_url(task)[:-1]
         return ''
-

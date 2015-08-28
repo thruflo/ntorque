@@ -37,11 +37,6 @@ class AuthenticationPolicy(CallbackAuthenticationPolicy):
     def unauthenticated_userid(self, request):
         """The ``api_key`` value found within the ``request.headers``."""
 
-        logger.warn(('AuthenticationPolicy'))
-        logger.warn(('request.headers', request.headers.items()))
-        logger.warn(('header_key', self.header_key))
-        logger.warn(('api_key', request.headers.get(self.header_key, None)))
-
         api_key = request.headers.get(self.header_key, None)
         if api_key and self.valid_key.match(api_key):
             return api_key.decode('utf8')
