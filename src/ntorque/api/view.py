@@ -120,12 +120,19 @@ class PushTask(object):
     def __call__(self):
         """Push the task onto the queue."""
 
+        logger.warn('PushTask')
+        logger.warn(self.request)
+
         # Unpack.
         request = self.request
         task = request.context
 
+        logger.warn(task)
+
         # Notify.
         self.push_notify(task)
+
+        logger.warn('ere')
 
         # Return a 201 response with the task url as the Location header.
         response = request.response
