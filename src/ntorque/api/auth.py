@@ -39,8 +39,8 @@ class AuthenticationPolicy(CallbackAuthenticationPolicy):
 
         logger.warn(('AuthenticationPolicy'))
         logger.warn(('request.headers', request.headers.items()))
-        logger.warn(('header_key': self.header_key))
-        logger.warn(('api_key': request.headers.get(self.header_key, None)))
+        logger.warn(('header_key', self.header_key))
+        logger.warn(('api_key', request.headers.get(self.header_key, None)))
 
         api_key = request.headers.get(self.header_key, None)
         if api_key and self.valid_key.match(api_key):
