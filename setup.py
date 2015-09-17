@@ -2,9 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'ntorque',
-    version = '0.3',
+    version = '0.3.2',
     description = 'Web hook task queue service.',
-    long_description = open('README.md').read(),
     author = 'James Arthur',
     author_email = 'username: thruflo, domain: gmail.com',
     url = 'http://ntorque.com',
@@ -15,7 +14,7 @@ setup(
         'License :: Public Domain',
         'Programming Language :: Python :: 2.7',
     ],
-    license = open('UNLICENSE').read(),
+    license = 'http://unlicense.org',
     packages = find_packages('src'),
     package_dir = {'': 'src'},
     include_package_data = True,

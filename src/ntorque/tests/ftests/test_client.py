@@ -17,7 +17,6 @@ import unittest
 
 from ntorque.model import api as repo
 from ntorque.model import constants
-from ntorque.tests import boilerplate
 
 from ntorque import client
 
@@ -85,8 +84,9 @@ class TestDispatch(unittest.TestCase):
     """Test the HTTP client with a direct dispatcher."""
 
     def setUp(self):
+        from ntorque.tests import boilerplate
         self.app_factory = boilerplate.TestAppFactory()
-    
+
     def tearDown(self):
         self.app_factory.drop()
 
@@ -134,7 +134,7 @@ class TestDispatch(unittest.TestCase):
         headers = {'Content-Type': 'application/json; utf-8'}
         status, response_data, response_headers = cli(url, data=json.dumps(data),
                 headers=headers)
-        
+
         # Get the task id from the location header.
         location = response_headers['Location']
         task_id = int(location.split('/')[-1])
@@ -156,7 +156,7 @@ class TestDispatch(unittest.TestCase):
         # Prepare.
         task_id = 1
         lookup = repo.LookupTask()
-        
+
         # Assert that the task is not in the database.
         with transaction.manager:
             task = lookup(task_id)

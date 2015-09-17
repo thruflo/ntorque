@@ -37,7 +37,7 @@ class MakeRequest(object):
         self.make_request = kwargs.get('make_request', requests.request)
         self.request_exc = kwargs.get('request_exc', RequestException)
         self.sock_timeout = kwargs.get('sock_timeout', socket.timeout)
-    
+
     def __call__(self, *args, **kwargs):
         """Make the request and log at the appropriate level for the response."""
 
@@ -60,8 +60,9 @@ class MakeRequest(object):
         key = u'torque.work.perform.request'
         if error:
             self.log.warn((key, args, kwargs))
-            self.log.warn((response.status_code, error))
+            self.log.warn(error)
             if response:
+                self.log.warn(response.status_code)
                 self.log.info(response.text)
         else:
             self.log.debug((key, args, kwargs, response.status_code))
@@ -72,6 +73,7 @@ class TaskPerformer(object):
     """Utility that acquires and performs a task by making an HTTP request."""
 
     def __init__(self, **kwargs):
+        self.log = kwargs.get('log', logger)
         self.task_manager_cls = kwargs.get('task_manager_cls', model.TaskManager)
         self.backoff_cls = kwargs.get('backoff', backoff.Backoff)
         self.make_request = kwargs.get('make_request', MakeRequest())
@@ -160,4 +162,14 @@ class TaskPerformer(object):
             status = task_manager.reschedule()
         else:
             status = task_manager.fail()
+
+        # Logging to be possible to follow events in production.
+        self.log.warn(
+            ('NTORQUE Task info',
+                'status', status,
+                'url', url,
+                'code', code,
+                'headers', headers,
+                'body', body,
+            ))
         return status

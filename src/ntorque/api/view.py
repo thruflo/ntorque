@@ -23,21 +23,20 @@ from . import tree
 URL_PATTERN = r"""(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))"""
 
 VALID_INT = re.compile(r'^[0-9]+$')
-VALID_URL = re.compile(URL_PATTERN) 
+VALID_URL = re.compile(URL_PATTERN)
 
 @view_config(context=tree.APIRoot, permission=NO_PERMISSION_REQUIRED,
         request_method='GET', renderer='string')
 def installed_view(object):
     """``POST /`` endpoint."""
-    
-    return u'Torque installed and reporting for duty, sir!'
 
+    return u'Torque installed and reporting for duty, sir!'
 
 @view_config(context=tree.APIRoot, permission='create', request_method='POST',
         renderer='string')
 class EnqueTask(object):
     """``POST /`` endpoint."""
-    
+
     def __init__(self, request, **kwargs):
         self.request = request
         self.bad_request = kwargs.get('bad_request', httpexceptions.HTTPBadRequest)
@@ -47,14 +46,14 @@ class EnqueTask(object):
         self.valid_int = kwargs.get('valid_int', VALID_INT)
         self.valid_methods = kwargs.get('valid_methods', constants.REQUEST_METHODS)
         self.valid_url = kwargs.get('valid_url', VALID_URL)
-    
+
     def __call__(self):
         """Validate, store the task and return a 201 response."""
-        
+
         # Unpack.
         request = self.request
         settings = request.registry.settings
-        
+
         # Validate.
         # - url
         url = request.GET.get('url', None)
@@ -87,26 +86,24 @@ class EnqueTask(object):
         response.status_int = 201
         response.headers['Location'] = request.resource_url(task)[:-1]
         return ''
-    
 
 @view_config(context=model.Task, permission='view', request_method='GET',
         renderer='json')
 class TaskStatus(object):
     """``GET /tasks/task:id`` endpoint."""
-    
+
     def __init__(self, request, **kwargs):
         self.request = request
-    
+
     def __call__(self):
         """Validate, store the task and return a 201 response."""
-        
+
         # Unpack.
         request = self.request
         task = request.context
-        
+
         # Return a 200 response with a JSON repr of the task.
         return task
-    
 
 @view_config(context=model.Task, name='push', permission='view',
         request_method='POST', renderer='json')
@@ -116,14 +113,14 @@ class PushTask(object):
     def __init__(self, request, **kwargs):
         self.request = request
         self.push_notify = kwargs.get('push_notify', model.PushTaskNotification(request))
-    
+
     def __call__(self):
         """Push the task onto the queue."""
-        
+
         # Unpack.
         request = self.request
         task = request.context
-        
+
         # Notify.
         self.push_notify(task)
 
@@ -132,4 +129,3 @@ class PushTask(object):
         response.status_int = 201
         response.headers['Location'] = request.resource_url(task)[:-1]
         return ''
-

@@ -21,23 +21,23 @@ from pyramid.security import Authenticated, Everyone
 @implementer(ILocation)
 class TraversalRoot(object):
     """Traversal boilerplate and a base access control policy."""
-    
+
     __acl__ = [
         (Allow, Authenticated, ALL_PERMISSIONS),
         (Deny, Everyone, ALL_PERMISSIONS),
     ]
     __name__ = ''
     __parent__ = None
-    
+
     def __init__(self, request, key='', parent=None, **kwargs):
         self.request = request
         self.__name__ = key
         self.__parent__ = parent
         self.alsoProvides = kwargs.get('alsoProvides', alsoProvides)
-    
+
     def locatable(self, context, key):
         """Make a context object locatable and return it."""
-        
+
         if not hasattr(context, '__name__'):
             context.__name__ = key
         context.__parent__ = self
@@ -45,5 +45,5 @@ class TraversalRoot(object):
         if not ILocation.providedBy(context):
             self.alsoProvides(context, ILocation)
         return context
-    
+
 

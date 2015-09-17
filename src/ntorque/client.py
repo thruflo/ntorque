@@ -81,7 +81,7 @@ class DirectDispatcher(object):
             response.raise_for_status()
         except requests.exceptions.RequestException:
             status = FAILED.format(response.status_code)
-        
+
         # Get the response data.
         try:
             data = response.json()
@@ -138,6 +138,7 @@ class HTTPTorqueClient(object):
             headers = {}
         if api_key:
             headers['TORQUE_API_KEY'] = api_key
+            headers['NTORQUE_API_KEY'] = api_key
 
         # Build a dict of query params.
         query = {'url': url}
@@ -182,12 +183,12 @@ class HybridTorqueClient(object):
         # Compose.
         if headers is None:
             headers = {}
-        
+
         # Unpack.
         api_key = self.api_key
         app_id = self.app_id
         header_prefix = self.header_prefix
-        
+
         # Validate the POST data.
         if data is not None and not isinstance(data, basestring):
             raise ValueError('Encode your post data as a string')
@@ -215,7 +216,7 @@ class HybridTorqueClient(object):
             application = app_id
         elif api_key:
             application = self.lookup(api_key)
-        
+
         # Instantiate a task factory.
         factory = self.factory_cls(application, url, timeout, method)
 
@@ -236,6 +237,7 @@ class HybridTorqueClient(object):
         # Authenticate if necessary.
         if api_key:
             headers['TORQUE_API_KEY'] = api_key
+            headers['NTORQUE_API_KEY'] = api_key
 
         # Build the url.
         url = self.join_path(torque_url, 'tasks', str(task.id), 'push')

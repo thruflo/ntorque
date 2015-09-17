@@ -24,13 +24,13 @@ DEFAULT_INTS = ('max_overflow', 'pool_size', 'pool_recycle')
 
 class IncludeMe(object):
     """Configure the db engine and provide ``request.db_session``."""
-    
+
     def __init__(self, **kwargs):
         self.base = kwargs.get('base', Base)
         self.default_settings = kwargs.get('default_settings', DEFAULTS)
         self.default_ints = kwargs.get('default_ints', DEFAULT_INTS)
         self.session_cls = kwargs.get('session_cls', Session)
-    
+
     def __call__(self, config):
         """Read any env var configuration into the Pyramid settings and then
           use the pyramid_basemodel includeme function to create and bind the
@@ -51,5 +51,5 @@ class IncludeMe(object):
         # Provide ``request.db_session``.
         get_session = lambda request: self.session_cls()
         config.add_request_method(get_session, 'db_session', reify=True)
-    
+
 includeme = IncludeMe().__call__

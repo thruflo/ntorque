@@ -15,5 +15,5 @@ REQUEST_METHODS = [u'DELETE', u'PATCH', u'POST', u'PUT']
 TASK_STATUSES = {
     'completed': u'COMPLETED',
     'failed': u'FAILED',
-    'pending': u'PENDING', 
+    'pending': u'PENDING',
 }
