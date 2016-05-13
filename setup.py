@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'ntorque',
-    version = '0.3.2',
+    version = '0.3.3',
     description = 'Web hook task queue service.',
     author = 'James Arthur',
     author_email = 'username: thruflo, domain: gmail.com',
