@@ -39,7 +39,10 @@ class WebTestResponseAdapter(object):
 
     @property
     def text(self):
-        return self.response.text
+        try:
+            return self.response.text
+        except AttributeError:
+            return u''
 
     def json(self):
         return self.response.json
