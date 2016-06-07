@@ -10,7 +10,7 @@ gevent==1.0.1
 
 # App Framework
 pyramid==1.5.2
-pyramid_basemodel==0.3.4
+pyramid_basemodel==0.3.6
 pyramid-hsts==1.2.2
 pyramid-redis==0.1.4
 pyramid-tm==0.7

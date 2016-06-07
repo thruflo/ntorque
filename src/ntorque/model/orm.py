@@ -32,6 +32,7 @@ from sqlalchemy.types import UnicodeText
 from pyramid_basemodel import Base
 from pyramid_basemodel import BaseMixin
 from pyramid_basemodel import Session
+from pyramid_basemodel import util as bm_util
 
 from ntorque import root
 faux_root = lambda **kwargs: root.TraversalRoot(None, **kwargs)
@@ -156,6 +157,14 @@ class Task(Base, BaseMixin):
     """Encapsulate a task."""
 
     __tablename__ = 'ntorque_tasks'
+    __table_args__ = bm_util.table_args_indexes(
+        'ntorque_tasks', [
+            'c',
+            'due',
+            'status',
+            # ('c', 'created'),
+        ]
+    )
 
     # Implemented during traversal to grant ``self.app`` access.
     __acl__ = NotImplemented
