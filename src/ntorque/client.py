@@ -177,7 +177,7 @@ class HybridTorqueClient(object):
         self.header_prefix = kwargs.get('header_prefix', c.PROXY_HEADER_PREFIX)
         self.join_path = kwargs.get('join_path', join_path)
 
-    def __call__(self, url, data=None, headers=None, method=None, timeout=None):
+    def __call__(self, url, data=None, headers=None, method=None, timeout=None, due=None):
         """Patch the api key into a POST request to the url."""
 
         # Compose.
