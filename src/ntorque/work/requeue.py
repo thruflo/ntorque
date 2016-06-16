@@ -11,52 +11,19 @@ __all__ = [
 import logging
 logger = logging.getLogger(__name__)
 
-import Queue
-
-import multiprocessing
 import time
+import transaction
 
 from datetime import datetime
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
 from pyramid_redis.hooks import RedisFactory
+
 from ntorque import model
-from .main import Bootstrap
+from ntorque import util
 
-def call_in_process(f, *args, **kwargs):
-    """Calls a function or method with the args and kwargs provided
-      in a new process. We use this to make sure we don't get a memory
-      leak from the db queries -- given that this thing runs forever.
-    """
-
-    # Configure.
-    timeout = kwargs.get('process_timeout', 10) # seconds
-
-    # Prepare a wrapper function and cross-process queue to get the
-    # return value from.
-    q = multiprocessing.Queue()
-    def doit():
-        r = f(*args, **kwargs)
-        q.put(r)
-
-    # Run the function in a new process and put the result on the queue.
-    p = multiprocessing.Process(target=doit)
-    p.start()
-
-    # Block until the function is called or the timeout is reached.
-    # If the latter, terminate the process.
-    p.join(timeout=timeout)
-    if p.is_alive():
-        p.terminate()
-
-    # Now, if there's a value on the queue, return it.
-    return_value = None
-    try:
-        return_value = q.get(False)
-    except Queue.Empty:
-        pass
-    return return_value
+from . import main
 
 class RequeuePoller(object):
     """Polls the database for tasks that should be re-queued."""
@@ -66,7 +33,7 @@ class RequeuePoller(object):
         self.channel = channel
         self.delay = delay
         self.interval = interval
-        self.call_in_process = kwargs.get('call_in_process', call_in_process)
+        self.call_in_process = kwargs.get('call_in_process', util.call_in_process)
         self.get_tasks = kwargs.get('get_tasks', model.GetDueTasks())
         self.logger = kwargs.get('logger', logger)
         self.session = kwargs.get('session', model.Session)
@@ -116,7 +83,7 @@ class ConsoleScript(object):
     def __init__(self, **kwargs):
         self.requeue_cls = kwargs.get('requeue_cls', RequeuePoller)
         self.get_redis = kwargs.get('get_redis', RedisFactory())
-        self.get_config = kwargs.get('get_config', Bootstrap())
+        self.get_config = kwargs.get('get_config', main.Bootstrap())
         self.session = kwargs.get('session', model.Session)
 
     def __call__(self):
