@@ -75,4 +75,4 @@ def generate_random_digest(num_bytes=20):
     """
 
     r = os.urandom(num_bytes)
-    return unicode(hexlify.hexlify(r))
+    return unicode(binascii.hexlify(r))
