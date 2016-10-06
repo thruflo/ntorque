@@ -54,6 +54,10 @@ class DueFactory(object):
         if not timeout:
             timeout = 0
 
+        # Return now if this is the first time.
+        if not retry_count:
+            return self.datetime.utcnow()
+
         # Use the ``retry_count`` to exponentially backoff from the ``min_delay``.
         backoff = self.backoff_cls(min_delay)
         backoff_method = getattr(backoff, algorithm)
